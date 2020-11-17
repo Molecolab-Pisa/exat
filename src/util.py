@@ -60,7 +60,7 @@ def GetOpts():
   # Read input line
   parser = arg.ArgumentParser(description="""EXAT - EXcitonic Analysis Tool: 
   Performs an excitonic calculation from the 
-  output of Gaussian gdvh23dev or gdvh36eet log file(s). """,
+  output of Gaussian 16 (R) log file(s). """,
   formatter_class=lambda prog: CustomHelpFormatter(prog,
    max_help_position=36,indent_increment=3))
 
@@ -83,7 +83,7 @@ def GetOpts():
      help='''Load an exat .npz file instead of 
             reading from Gaussian/External files''')
   grpinp.add_argument('--log','-i',metavar='LogFile',
-     help='Gaussian logfile name (for gdvh36 only)')
+     help='Gaussian logfile name (for g16 input)')
 
   # Output options
   grpout = parser.add_argument_group(' Output options')

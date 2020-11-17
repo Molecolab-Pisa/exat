@@ -253,7 +253,6 @@ def readgaulog(logfile):
     # Looks for NChrom:
     if "62=" in data[i]:
       NChrom = int(data[i].split("62=")[1].split(",")[0])
-      if c.OPT['read'] == 'gdvh36': NAtoms = [0]*NChrom 
 
 
     # Looks for the atomic coordinates 
@@ -326,7 +325,7 @@ def readgaulog(logfile):
 
 # *****************************************************************************
 #
-# Read into gdvh36 .log files to extract site energies, dipoles ...
+# Read into g16 eet .log files to extract site energies, dipoles ...
 # Also extract couplings
 #
 
@@ -386,7 +385,7 @@ def readgaulog36(logfile):
         FragAt = [None]*NChrom
 
 
-      # Extract number of atoms in gdvh36
+      # Extract number of atoms 
       if line[1:19] == 'Symbolic Z-matrix:':
         kk = 0
         while True:
@@ -482,7 +481,7 @@ def readgaulog36(logfile):
       Coup = []
 
       if c.OPT['read'] == 'gdvh36':
-        # read couplings for gdvh36-molecolab 
+        # read couplings for molecolab 
         if c.OPT['coup'] == 'total': ExplCoup = []
         while True:  
           line = f.readline()
@@ -492,7 +491,7 @@ def readgaulog36(logfile):
           elif c.OPT['coup'] == 'total' and '> Explicit MMPol'  in line:
             ExplCoup += [(int(line[25:29]),int(line[31:35]),int(line[43:47]),int(line[49:53]),float(line[55:69]))]
       else:
-        # read couplings for gdvh36 (plain)
+        # read couplings for g16 (plain)
         while True:
           line = f.readline()
           if not line: break
@@ -505,7 +504,7 @@ def readgaulog36(logfile):
               if FindCoup in line: 
                 CoupValue = float(line[31:43])*c.PhyCon['eV2wn']
                 break
-            # swap chrom 1 and 2 for compatibility with order of gdvh36-molecolab
+            # swap chrom 1 and 2 for compatibility 
             Coup += [(Ch2,St2,Ch1,St1,CoupValue)]
 
       # Transform in np.array and sort 
