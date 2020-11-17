@@ -41,7 +41,7 @@ import sys, os
 import numpy as np
 
 # VERSION
-VERSION  = "1.0.0a"
+VERSION  = "2.0.0a"
 PROGVERS = "Exat - EXcitonic Analysis Tool - Version %s" % VERSION
 
 # ******************************************************************************
@@ -68,6 +68,7 @@ OPT =    {
             'ScaleTran' : None,             # Request dipole and coupling scaling
             'ModSite'   : False,            # Whether to modify site energies
             'ModDipoLen': False,            # Whether to modify transition electric dipoles
+            'ModDipoMag': False,            # Whether to modify transition magnetic dipoles
             'ModCoup'   : False,            # Whether to modify couplings
             'ModCent'   : False,            # Whether to modify centers
             'OutPrefix' : False,
@@ -109,14 +110,116 @@ PhyCon =   {
 #
 # ******************************************************************************
 
-AtMass =   {   1  : 1.00797  ,
-               5  : 11.0093053,
-               6  : 12.01115 ,
-               7  : 14.0067  ,
-               8  : 15.9994  ,
-               9  : 18.9984033,
-              12  : 24.312  }
-
+AtMass =  {    1 :    1.0079400,
+               2 :    4.0026020,
+               3 :    6.9410000,
+               4 :    9.0121820,
+               5 :   10.8110000,
+               6 :   12.0107000,
+               7 :   14.0067000,
+               8 :   15.9994000,
+               9 :   18.9984032,
+              10 :   20.1797000,
+              11 :   22.9897700,
+              12 :   24.3050000,
+              13 :   26.9815380,
+              14 :   28.0855000,
+              15 :   30.9737610,
+              16 :   32.0650000,
+              17 :   35.4530000,
+              18 :   39.9480000,
+              19 :   39.0983000,
+              20 :   40.0780000,
+              21 :   44.9559100,
+              22 :   47.8670000,
+              23 :   50.9415000,
+              24 :   51.9961000,
+              25 :   54.9380490,
+              26 :   55.8450000,
+              27 :   58.9332000,
+              28 :   58.6934000,
+              29 :   63.5460000,
+              30 :   65.4090000,
+              31 :   69.7230000,
+              32 :   72.6400000,
+              33 :   74.9216000,
+              34 :   78.9600000,
+              35 :   79.9040000,
+              36 :   83.7980000,
+              37 :   85.4678000,
+              38 :   87.6200000,
+              39 :   88.9058500,
+              40 :   91.2240000,
+              41 :   92.9063800,
+              42 :   95.9400000,
+              43 :   97.9072160,
+              44 :  101.0700000,
+              45 :  102.9055000,
+              46 :  106.4200000,
+              47 :  107.8682000,
+              48 :  112.4110000,
+              49 :  114.8180000,
+              50 :  118.7100000,
+              51 :  121.7600000,
+              52 :  127.6000000,
+              53 :  126.9044700,
+              54 :  131.2930000,
+              55 :  132.9054500,
+              56 :  137.3270000,
+              57 :  138.9055000,
+              58 :  140.1160000,
+              59 :  140.9076500,
+              60 :  144.2400000,
+              61 :  144.9127440,
+              62 :  150.3600000,
+              63 :  151.9640000,
+              64 :  157.2500000,
+              65 :  158.9253400,
+              66 :  162.5000000,
+              67 :  164.9303200,
+              68 :  167.2590000,
+              69 :  168.9342100,
+              70 :  173.0400000,
+              71 :  174.9670000,
+              72 :  178.4900000,
+              73 :  180.9479000,
+              74 :  183.8400000,
+              75 :  186.2070000,
+              76 :  190.2300000,
+              77 :  192.2170000,
+              78 :  195.0780000,
+              79 :  196.9665500,
+              80 :  200.5900000,
+              81 :  204.3833000,
+              82 :  207.2000000,
+              83 :  208.9803800,
+              84 :  208.9824160,
+              85 :  209.9871000,
+              86 :  222.0176000,
+              87 :  223.0197307,
+              88 :  226.0254030,
+              89 :  227.0277470,
+              90 :  232.0381000,
+              91 :  231.0358800,
+              92 :  238.0289100,
+              93 :  237.0481670,
+              94 :  244.0641980,
+              95 :  243.0613730,
+              96 :  247.0703470,
+              97 :  247.0702990,
+              98 :  251.0795800,
+              99 :  252.0829700,
+             100 :  257.0950990,
+             101 :  258.0984250,
+             102 :  259.1010200,
+             103 :  262.1096900,
+             104 :  261.1087500,
+             105 :  262.1141500,
+             106 :  266.1219300,
+             107 :  264.1247300,
+             108 :  269.1341100,
+             109 :  268.1388200
+          }
 
 # ******************************************************************************
 #
@@ -129,9 +232,9 @@ ExtFiles = {
    'incoup'       : 'coup.in',        # Coupling values (cm-1)
    'insite'       : 'site.in',        # Site energies (eV)
    'incent'       : 'cent.in',        # Postion of the centers (Ang)
-   'indipo'       : 'dipo.in',        # Electric transtion dipoles (lenght formulation) in a.u.
-   'indipovel'    : 'dipovel.in',     # Electric transtion dipoles (velocity formulation) in a.u.
-   'indipomag'    : 'dipomag.in',     # Magnetic transtion dipoles in a.u.
+   'dipo'         : 'dipo.in',        # Electric transtion dipoles (lenght formulation) in Debye
+   'magdipo'      : 'dipomag.in',     # Magnetic transtion dipoles in a.u.
+   'modcoup'      : 'coup.in',        # Coupling modification file
    'crlist'       : 'chromlist.in',   # List of chromophores and selected tranitions
    'refaxis'      : 'reference.in',   # List of chromophores, refaxes and angles (for select tr)
    'ScaleTran'    : 'scaletran.in'    # List of chromophores and scaling factors (for select tr)
@@ -157,22 +260,6 @@ OutFiles = {
    'dipovel'      : 'dipovel.out',    # List of transition dipole moments (velocity)
    'cent'         : 'cent.out',
    }
-
-
-# ******************************************************************************
-#
-# Common variables 
-#
-# ******************************************************************************
-
-# These may or may not have a duplicate in the global namespace
-NChrom = 2
-NTran  = []
-ChromList = []
-CoupList = [] # List of indices k->ij (i,j chromophores)
-NAtom = []    # List of atom numbers, for each chromophore
-anum  = []    # List of atom numbers
-xyz   = []    # Geometry
 
 # ******************************************************************************
 #
@@ -221,8 +308,8 @@ def welcome():
 def error(string,where=None):
   # Determine calling function
   if where is None: where = sys._getframe().f_back.f_code.co_name
-  print("\n------ ERROR in %s ------\n%s\n" % (where,string))
-  sys.exit()
+  msg = "\n------ ERROR in %s ------\n%s\n" % (where,string)
+  raise AssertionError(msg)
 
 
 # ******************************************************************************
@@ -289,6 +376,7 @@ def printout(List,NER,fmt,margin=2,header=''):
 # StringConverter
 #
 # ******************************************************************************
+
 def stringconverter(In):
 
   Out = []
@@ -314,6 +402,7 @@ def checkfile(FILENAME):
     print("\n File %s not found!\n" % FILENAME)
     sys.exit()
 
+
 # ******************************************************************************
 #
 # Set prefix to output files
@@ -323,7 +412,8 @@ def setoutfiles():
   if OPT['OutPrefix'] is not False: 
     for k in OutFiles:
       OutFiles[k] = OPT['OutPrefix']+'.'+OutFiles[k]
-  
+
+
 # ******************************************************************************
 #
 # Print out a dictionary or a list (OPT, etc) 
@@ -360,11 +450,13 @@ def v(level=-1):
   if v is None: v = 0
   return v > level
 
+
 # ******************************************************************************
 #
 # VMD Header
 #
 # ******************************************************************************
+
 def VMDHeader():
   s  = '## Generated with %s\n\n' % PROGVERS 
   s += '## VMD script to view transition dipoles... follow the instructions\n'

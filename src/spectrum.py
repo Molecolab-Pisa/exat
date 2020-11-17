@@ -97,21 +97,10 @@ def specalc(NTran,energy,dipo,dipold,rotstr,broad):
 
   for j in range(NTran):	
     p = [energy[j],broad[j]]
-#   OD[:,j] = LineShape(p,x)*dipo[j]*energy[j]
     OD[:,j] = LineShape(p,x)*dipo[j]*factOD
     LD[:,j] = LineShape(p,x)*dipold[j]*factOD
-    # Che cavolo vuol dire qui sotto???
-#   CD[:,j] = LineShape(p,x)*rotstr[j]*energy[j]/(22.96*broad[j]*np.sqrt(2.0*np.pi)) 
     CD[:,j] = LineShape(p,x)*rotstr[j]*factCD 
  
-  savespec("OD",x,OD)
-  savespec("LD",x,LD)
-  savespec("CD",x,CD)
-
-  findpeaks("OD",x,OD,broad)
-  findpeaks("CD",x,CD,broad)
-  findpeaks("LD",x,LD,broad)
-
   return(x,OD,LD,CD)
 
 # *****************************************************************************
@@ -121,7 +110,6 @@ def specalc(NTran,energy,dipo,dipold,rotstr,broad):
 
 def findpeaks(typespec,x,y,broad):
 
- y  = np.sum(y,axis=1)
 
 #broad = np.mean(broad)
 #width = np.arange(1,10)*broad/3
@@ -174,19 +162,23 @@ def printlimits():
 # Save Output Spectra
 #
 
-def savespec(typespec,x_in,y):
+def savespec(typespec,x_in,y_in,OPT):
   x = x_in.copy()
+  y = y_in.copy()
 
   # Set to zero very small numbers
   y[np.abs(y)<1e-99] = 0.0
 
-  OutFileName = "%s.%s.dat" % (OPT['FOut'],typespec)
-
-  OutFile = open(OutFileName,'w')
-  OutFile.write("# %s spectrum generated with spectrum.py\n" % typespec)
-  OutFile.write("# VERSION: %s\n" % c.VERSION)
-  OutFile.write("# Initial command: \n")
-  OutFile.write("# %s \n" % ' '.join(sys.argv))
+  if OPT['bin']:
+    OutFileName = "%s.%s.npy" % (OPT['FOut'],typespec)
+  else:
+    OutFileName = "%s.%s.dat" % (OPT['FOut'],typespec)
+  
+    OutFile = open(OutFileName,'w')
+    OutFile.write("# %s spectrum generated with spectrum.py\n" % typespec)
+    OutFile.write("# VERSION: %s\n" % c.VERSION)
+    OutFile.write("# Initial command: \n")
+    OutFile.write("# %s \n" % ' '.join(sys.argv))
   
   N = 1
 
@@ -219,9 +211,12 @@ def savespec(typespec,x_in,y):
     outfmt = '%12.2f'+' %18.10E'*N
 
   spec  = np.column_stack((x, sum_y))
-  np.savetxt(OutFile,spec,fmt=outfmt,newline="\n")
 
-  OutFile.close()
+  if OPT['bin']:
+    np.save(OutFileName,spec)
+  else:
+    np.savetxt(OutFile,spec,fmt=outfmt,newline="\n")
+    OutFile.close()
   pass
 
 
@@ -249,8 +244,10 @@ if __name__ == "__main__":
   parser.add_argument('--min',   help='Low energy limit',default=900.0,type=float)
   parser.add_argument('--autorange', help='Set automatic energy range',action="store_true")
   parser.add_argument('--step',  help='Frequency step (cm-1)',default=2.0,type=float)
+  parser.add_argument('--bin', help='Save binary npy files instead of text files',action="store_true")
   parser.add_argument('--shape', help='Define the spectral lineshape',choices=["gaussian","lorentzian"],default="gaussian")
-  parser.add_argument('--contr', help='Save the contributes of single transition to the total spectrum',action="store_true")
+  parser.add_argument('--lorentzian',help='Equivalent to --shape lorentzian',action="store_true")
+  parser.add_argument('--contr', help='Save the contributions of single transitions to the total spectrum',action="store_true")
   parser.add_argument('-s','--shift', help='Shift the spectrum of given quantity',type=float)
 
   group = parser.add_mutually_exclusive_group(required=True)
@@ -275,12 +272,15 @@ if __name__ == "__main__":
   OPT['UBrd']  = args.unitbroad
   OPT['UAxi']  = args.unitaxis
   OPT['shift'] = args.shift
+  OPT['bin']   = args.bin
   autorange    = args.autorange
   if autorange is True:
     autorange = True
     OPT['XMax'] = 'Auto'
     OPT['XMin'] = 'Auto'
 
+  if args.lorentzian:
+    OPT['LShp'] = 'lorentzian'
 
   # Parse and process broeadening type
   OPT['BRed'] = False
@@ -396,6 +396,15 @@ if __name__ == "__main__":
 
   # Call the function to write the spectrum into a file
   x,OD,LD,CD = specalc(NTran,energy,dipo,dipold,rotstr,broad)
+
+  findpeaks("OD",x,OD.sum(axis=1),broad)
+  findpeaks("CD",x,CD.sum(axis=1),broad)
+  findpeaks("LD",x,LD.sum(axis=1),broad)
+
+  savespec("OD",x,OD,OPT)
+  savespec("LD",x,LD,OPT)
+  savespec("CD",x,CD,OPT)
+
  
   # Visualize the spectrum
   if OPT['IPlt'] == True :

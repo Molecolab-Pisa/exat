@@ -52,8 +52,8 @@ import numpy as np
 import common as c
 import util as u
 import readdata      # Read data (from Gaussian output)
-import buildmatrix   # Build the excitonic matrix
-import diag          # Diagonalize the excitonic matrix
+#import buildmatrix   # Build the excitonic matrix
+#import diag          # Diagonalize the excitonic matrix
 import trans         # Compute the excitonic dip and R
 
 # Reset program version in common
@@ -288,8 +288,8 @@ class EXATGUI:
   def clearwindow(self):
     # Clear status bar and title
     self.window.set_title('EXAT - EXcitonic Analysis Tool')
-    self.statusbar.remove_all(self.context_id)
-    self.statusbar.remove_all(self.context_id) # Doing twice should do the trick
+    #self.statusbar.remove_all(self.context_id)
+    #self.statusbar.remove_all(self.context_id) # Doing twice should do the trick
     # Clear tables
     self.sitelist.clear()
     self.exclist.clear()
@@ -300,7 +300,10 @@ class EXATGUI:
 
   def exat_read(self):
     self.clearwindow()
-    if self.inlog[-3:] != '.in':
+    if self.inlog[-4:] == '.npz':
+      c.ExtFiles['load'] = self.inlog
+      c.OPT['read'] = 'load'
+    elif self.inlog[-3:] != '.in':
       c.OPT['logfile'] = self.inlog
       c.OPT['read'] = guessversion(self.inlog)
     else:
@@ -316,16 +319,14 @@ class EXATGUI:
     logname = self.inlog.split('/')[-1]
     self.statusbar.push(self.context_id, "Reading %s ..." % (logname))
     try:
-      self.Cent,self.DipoLen,self.DipoVel,self.Mag,self.Site,\
-                   self.Coup,self.Kappa = readdata.Read()
+      self.system,self.Sel = readdata.Read()
     except:
       raise Exception('Could not read file %s' % (self.inlog))
     self.statusbar.push(self.context_id, "Loaded %s" % (logname))
     self.window.set_title('EXAT - %s' % (logname))
     self.update_data()
     # Also, save original data in such a way that we can retrieve them
-    self.original_data = (c.NChrom,c.NTran,self.Cent,self.DipoLen,
-          self.DipoVel,self.Mag,self.Site,self.Coup,self.Kappa)
+    self.original_data = self.system.copy()
     
   def exat_run(self):
     if c.OPT['RCalc'] == 'mag' and c.OPT['read'] == 'external':
@@ -333,15 +334,16 @@ class EXATGUI:
       return False
 
     self.statusbar.push(self.context_id, "Building excitonic Hamiltonian ... ")
-    self.H = buildmatrix.matrixbuilder(self.Site,self.Coup)
+    self.H = self.system.buildmatrix()
 
     self.statusbar.push(self.context_id, "Diagonalize excitonic Hamiltonian ... ")
-    self.energy,self.coeff = diag.diagonalize(self.H)
+    self.energy,self.coeff = self.system.diagonalize()
+
     # Convert some quantities to A.U.
     EEN  =  self.energy/c.PhyCon['Town']  # Excitonic Energies (Hartree)
 
     self.statusbar.push(self.context_id, "Compute excitonic properties ... ")
-    RxDel  = np.cross(self.Cent/c.PhyCon['ToAng'],self.DipoVel)    
+    RxDel  = np.cross(self.system.Cent/c.PhyCon['ToAng'],self.system.DipoVel)    
     # Compute internal magnetic moment (DipoMag is gauge-dependent)
     self.MagInt = self.Mag - RxDel
 
@@ -378,61 +380,16 @@ class EXATGUI:
 
     # Get selection
     SelChromList = [] ; Sel = []
-    for i in range(c.NChrom):
+    for i in range(self.system.NChrom):
       if np.any(selection[i]):
         # Only append Chroms that have selected transitions
         SelChromList.append(i+1)
         ITran  = np.where(selection[i])[0]
         Sel.append(ITran+1)
 
+    self.system = self.system.seltran( zip(SelChromList,Sel) )
 
-    # Do seltran
-    NChrom = c.NChrom # Old NChrom
-    ChromList = range(1,NChrom+1) # old chromlist
-    SelNChrom = len(SelChromList)
-     
-    IndChrom = [ ChromList.index(x) for x in SelChromList ]
-
-    self.Site      = np.array(readdata.delist(self.Site,NChrom,IndChrom,Sel))
-    self.DipoLen   = np.array(readdata.delist(self.DipoLen,NChrom,IndChrom,Sel))
-    self.DipoVel   = np.array(readdata.delist(self.DipoVel,NChrom,IndChrom,Sel))
-    self.Mag       = np.array(readdata.delist(self.Mag,NChrom,IndChrom,Sel))
-    self.Cent      = np.array(readdata.delist(self.Cent,NChrom,IndChrom,Sel))
-
-    #
-    # Select couplings
-    #
-  
-    k = 0
-    NewCoup = [] ; NewKappa = []
-    for I in range(NChrom):
-      for J in range(I+1,NChrom):
-        for it in range(c.NTran[I]):
-          for jt in range(c.NTran[J]):
-            if I in IndChrom and J in IndChrom:
-              IndI = IndChrom.index(I)
-              IndJ = IndChrom.index(J)
-              if it+1 in Sel[IndI] and jt+1 in Sel[IndJ]:
-                NewCoup.append(self.Coup[k])
-                if self.Kappa: 
-                  NewKappa.append(self.Kappa[k])
-            k += 1
-
-    #TODO: Select geometry (for later usage)
-
-    #
-    # Reset NTran and NChrom properly
-    #
-    NTran = []
-    for i in Sel:
-      NTran.append(len(i))
-    NChrom = len(NTran)
-  
-    c.NChrom = NChrom
-    c.NTran = NTran # Save NTran to Common 
-
-    self.Coup = np.array(NewCoup)
-    self.Kappa= np.array(NewKappa)
+    self.update_data()
 
     # All OK
     return True 
@@ -442,6 +399,9 @@ class EXATGUI:
     c.OPT['OutPrefix'] = outfile
     c.OutFiles = c.OutFilesBK.copy()
     c.setoutfiles()
+
+    # npz
+    self.system.save(c.OutFiles['exatdata'])
 
     # matrix
     np.savetxt(c.OutFiles['matrix'],self.H,fmt='%10.1f',delimiter='',newline='\n')
@@ -457,8 +417,8 @@ class EXATGUI:
       np.savetxt(f,TblProb,fmt='%10.4f ',delimiter='',newline='\n')
 
     # Visudipo
-    u.savegeom()
-    u.savevisudipo(self.Cent,self.DipoLen,self.EXCDipoLen,-self.MagInt)
+    u.savegeom(self.system.anum,self.system.xyz.tolist())
+    u.savevisudipo(self.system,self.EXCDipoLen,-self.MagInt)
 
     #results
     u.resout(self.energy,self.EXCDipo2,self.LD,self.EXCRot)
@@ -501,8 +461,9 @@ class EXATGUI:
   def on_menu_seltran_activate(self,menuitem,data=None):
     # first of all, retrieve original data
     try:
-      c.NChrom,c.NTran,self.Cent,self.DipoLen,self.DipoVel,\
-      self.Mag,self.Site,self.Coup,self.Kappa = self.original_data
+      self.system = self.original_data.copy()
+      self.system.buildmatrix()
+      self.update_data()
     except:
       return None
     self.init_winseltran()
@@ -598,9 +559,18 @@ class EXATGUI:
   def update_data(self):
     self.sitelist.clear()
     # Update site energy
+    self.Site    = self.system.Site/c.PhyCon['eV2wn']
+    self.DipoLen = self.system.DipoLen
+    self.DipoVel = self.system.DipoVel
+    self.Cent    = self.system.Cent
+    self.Mag     = self.system.Mag 
+
     k = 0
-    for IChr in range(c.NChrom):
-      for ITr in range(c.NTran[IChr]):
+    NChrom  = self.system.NChrom
+    NTran   = self.system.NTran
+    crlist  = self.system.ChromList.Chrom
+    for IChr in range(NChrom):
+      for ITr in range(NTran[IChr]):
         # Format numbers here
 	D2 = np.sum(self.DipoLen[k]**2)*c.PhyCon['ToDeb']**2 #D^2
         self.sitelist.append_row([IChr+1,ITr+1,("%8.4f" % self.Site[k]),("%12.4f"%D2)])
@@ -626,7 +596,7 @@ class EXATGUI:
 
     H_str = ''
     for J in range(n):
-      H_str += (' %12.4f'*n + '\n') % tuple(self.H[J].tolist()[0])
+      H_str += (' %12.4f'*n + '\n') % tuple(self.H[J].tolist())
     buff.set_text(H_str)
 
     pass
@@ -701,7 +671,7 @@ class EXATGUI:
     try: self.Site
     except: return False
       
-    NTrMax = max(c.NTran)
+    NTrMax = max(self.system.NTran)
 
     coltyp  = [int]+NTrMax*[bool]    
 
@@ -730,8 +700,9 @@ class EXATGUI:
       
       # Add rows
       #self.sellist.clear()
-      for J in range(c.NChrom):
-        self.sellist.append([J+1]+[True]*c.NTran[J]+[False]*(NTrMax-c.NTran[J]))
+      NTran = self.system.NTran
+      for J in range(self.system.NChrom):
+        self.sellist.append([J+1]+[True]*NTran[J]+[False]*(NTrMax-NTran[J]))
 
 
   def on_seltran_cell_toggled(self,widg,path,col):

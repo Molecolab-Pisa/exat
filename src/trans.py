@@ -91,7 +91,7 @@ def RotStrength(EEN,Cent,coeff,DipoLen,EXCDipoLen,DipoVel,MagInt,RxDel,Site):
         print " "*5+"-"*58 
         print "  "+(4*"%15s") % ("Mu (Approx)","R Int","R Ext","RTot")
         print " "*5+"-"*58 
-        for i in range(sum(c.NTran)):
+        for i in range(len(EXCRot)):
           print "  "+" %14.2f"*4 % (EXCRotMu[i],RInt[i],RExt[i],EXCRot[i])
         print
   
@@ -214,14 +214,12 @@ def Rapprox(energy,coeff,dipo,cent):
 #
   R *= energy
   R *= 1E-8*np.pi
-
 #
 # Returns the Excitonic Rotational Strenghts in 10^-40 esu^2 cm^2 (same unit as
 # GaussView CD Spectrum)
 #
   DipAu2cgs = ((2.541746E-18)**2)*1E+40
   R *= DipAu2cgs
-
 
   return R
 

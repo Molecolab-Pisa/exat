@@ -48,6 +48,8 @@ import argparse as arg
 import common   as c
 import util     as u
 import readdata as r
+from excsystem import ExcSystem
+
 
 # EEN,Del,RxDel can be floats or np.arrays
 def RVelIso(EEN,Del,RxDel):
@@ -61,6 +63,26 @@ def RVelIso(EEN,Del,RxDel):
 
   return RVel,Angle
 
+
+
+def checkdipovel(dipolen,dipovel,site):
+
+  dipovel1 = -dipovel/(site[:,None]/c.PhyCon['ToeV']) 
+  
+  delta = np.linalg.norm(dipovel1 - dipolen, axis=-1)
+
+  norm1 = np.linalg.norm(dipovel1,axis=-1)
+  norm2 = np.linalg.norm(dipolen ,axis=-1)
+  cos   = np.sum(dipolen*dipovel1,axis=-1)/(norm1*norm2)
+  angle = np.degrees(np.arccos(cos))
+
+  deltaperc = delta/norm2*100
+  
+  print
+  for i in range(s.NTran[0]):
+    print " Nabla %2d ----- delta = %6.2f%%  angle = %8.4f " % (i+1,deltaperc[i],angle[i])
+  
+  pass
 
 
 # *****************************************************************************
@@ -85,7 +107,10 @@ if __name__ == "__main__" :
   parser.add_argument('--mu',help='Prefix for output files',action="store_true")
   parser.add_argument('--ang',help='Compute angle',action="store_true")
   parser.add_argument('--spec',help='Extract data for produce uv and cd spectrum',action="store_true")
-  parser.add_argument('--reorient',help='Indicate 2 atoms as reference direction',nargs="*",type=int,default=[1,2])
+  parser.add_argument('--reorient',help='Indicate 2 atoms as reference direction',
+          nargs=2,type=int,default=None)
+  parser.add_argument('--checkvel',action="store_true",
+          help='Check velocity dipole moments')
   args = parser.parse_args()
 
   c.welcome()
@@ -100,34 +125,39 @@ if __name__ == "__main__" :
   c.OPT['seltran']   = args.seltran
   c.OPT['reorient']  = args.reorient
   c.OPT['Cent']      = args.cent
-  if args.anadipo  :
+  if args.anadipo:
     c.OPT['anadipo'] = True
     c.ExtFiles['refaxis'] = args.anadipo
 
+  fixang = True#args.fixang
+  velcheck = args.checkvel
 
   # Check if the .log files
   c.checkfile(InLogFile)
 
   # Read Gaussian Log files
-  out = r.readgaulog(InLogFile)
+  #out = r.readgaulog(InLogFile)
   anum,xyz,site,dipo,dipovel,mag,NAtom,NTran,NChrom = r.readgaulog(InLogFile)
 
-  c.anum   = anum
-  c.xyz    = xyz
-  c.NChrom = NChrom
-  c.NAtom  = [NAtom]
-  c.NTran  = [NTran]
 
   dipo     = np.array(dipo)
   dipovel  = np.array(dipovel)
   mag      = np.array(mag)
   site     = np.array(site)
 
-  # Tweak for couplings
-  coup = np.zeros(c.NTran)
+
+  NAtom    = [NAtom]
+
 
   # Compute the chromophore center
-  Cent = u.calchromcent()
+  Cent = u.calchromcent(NAtom,anum,xyz,[NTran])
+  
+  s = ExcSystem([(1,range(1,NTran+1))],site=site,Cent=np.asarray(Cent),
+          DipoLen=dipo,DipoVel=dipovel,Mag=mag)
+  s.add_geom(anum,xyz,NAtom)
+  # Tweak for couplings
+  s.coup = np.zeros(0)
+  s.buildmatrix()
 
 
   # Select transtion (if requested by user)
@@ -137,7 +167,8 @@ if __name__ == "__main__" :
 
   # Analyze electric transition dipole moment
   c.ChromList = [InLogFile.split('.')[0]]
-  u.reorientdipo(dipo,dipovel,mag,coup)
+  if c.OPT['reorient'] is not None:
+    u.reorientdipo(dipo,dipovel,mag,coup)
 
 
 # Compute internal magnetic moment (DipoMag is gauge-dependent)
@@ -150,24 +181,32 @@ if __name__ == "__main__" :
 
   print '\n'
   print " Electric transition dipoles: "
-  for i in range(c.NTran[0]):
+  for i in range(s.NTran[0]):
     NormDip =  np.linalg.norm(dipo[i])
     print " Trans %2d  %8.4f  mu  = %8.4f %8.4f %8.4f  ->  %8.4f " % (i+1,site[i],dipo[i][0],dipo[i][1],dipo[i][2],NormDip)
 
-  u.dipoanalysis(dipo)
+  #c.OPT['verbosity'] = -1
+  if c.OPT['anadipo'] is not None:
+    u.dipoanalysis(s)
+
+  if velcheck:
+    checkdipovel(dipo,dipovel,site)
 
   print '\n'
   print " Magnetic transition dipoles (intrinsic): "
-  for i in range(c.NTran[0]):
+  for i in range(s.NTran[0]):
     NormMagInt =  np.linalg.norm(MagInt[i])
     print " Trans %2d  %8.4f  mag = %8.4f %8.4f %8.4f  ->  %8.4f " % (i+1,site[i],MagInt[i][0],MagInt[i][1],MagInt[i][2],NormMagInt)
 
-  # Dipole analysis with internal magnetic moment
-  u.dipoanalysis(MagInt)
+    # Dipole analysis with internal magnetic moment
+  if c.OPT['anadipo'] is not None:
+    s1 = s.copy()
+    s1.DipoLen = MagInt
+    u.dipoanalysis(s1,True)
 
 # Save visudipo
-  u.savegeom()
-  u.savevisudipo(Cent,dipo,dipovel,mag)
+  u.savegeom(anum,xyz)
+  u.savevisudipo(s,s.DipoLen,s.Mag)
 
 # Recompute rotatory strenght
   R,angle = RVelIso(site/c.PhyCon['ToeV'],dipovel,-MagTot)

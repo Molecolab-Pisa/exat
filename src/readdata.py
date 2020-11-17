@@ -44,6 +44,7 @@ import numpy  as np
 import argparse as arg
 
 # Import COMMON Modules
+from excsystem import ChromTranList,ExcSystem,load_npz
 import common as c
 import util   as u
 
@@ -54,98 +55,97 @@ import util   as u
 
 def Read():
   
+  # system-dependent read
+  SelChromList = None
+  if c.OPT['seltran']:
+    ChromList = ReadChromList()
+    # Save selection
+    SelChromList = ChromTranList(ChromList.iteritems())
+  elif c.OPT['read'] not in ('g16','load'):
+    ChromList = ReadChromList()
+
+  if c.OPT['read'] == 'load':
+    return load_npz(c.ExtFiles['load']),SelChromList
+
   if c.OPT['read'] == 'g16':
     if c.v():
       print  " ... excpected gaussian version: g16"
       print  " ... reading in %s .log file" % c.OPT['logfile']
-    Site,Dipo,DipoVel,Mag,Coup = readgaulog36(c.OPT['logfile'])
+    Site,Dipo,DipoVel,Mag,Coup,NTran,anum,xyz,NAtom = readgaulog36(c.OPT['logfile'])
+    ChromList = ChromTranList( ((i+1),[]) for i in range(len(NTran)) )
+    ChromList.set_NTran(NTran)
   
   elif c.OPT['read'] == 'external':
   
     if c.v(): 
       print " ... all parameters are read from external files" 
       print " ... reading %s file to set the chromophore list" % c.ExtFiles['crlist'] 
-    ReadChromList()
-    Cent,Site,Dipo,DipoVel,Mag,Coup = ReadExternal()
+    Cent,Site,Dipo,DipoVel,Mag,Coup = ReadExternal(ChromList)
   
 
   if c.OPT['read'] != 'external':
     if c.v():
       print " ... compute the center of each transtion" 
-    Cent = u.calchromcent()
+    Cent = u.calchromcent(NAtom,anum,xyz,ChromList.NTran)
   
   # Compute dipole couplings
   if c.OPT['coup'] == 'PDA' :
     if c.v():
       print " ... using dipole-dipole couplings based on electric transition dipole moments" 
       print "     REFRACTION INDEX = %5.2f" % c.OPT['refrind'] 
-    Coup,Kappa = u.coupforster(Cent,Dipo,IKappa=True)
+    Coup,Kappa = u.coupforster(Cent,Dipo,ChromList.NChrom,ChromList.NTran)
+    Kappa    = np.array(Kappa)
   else:
-    Kappa=False
+    Kappa = None
   
-  #print(" ... save couplings and distances between chromophres")
-  #u.savecoupdist(Coup,Cent)
-  
-  # Applying selection of transitions 
-  if c.OPT['read'] != 'external' and c.OPT['seltran'] == True: 
-    Site,Dipo,DipoVel,Mag,Cent,Coup,Kappa = seltran(Site,Dipo,DipoVel,Mag,Cent,Coup,Kappa)
   
   Cent     =  np.array(Cent)
   DipoLen  =  np.array(Dipo)                    # Electric tranistion dipole moments (a.u.)
   DipoVel  =  np.array(DipoVel)                 # Nabla (a.u.)
   Mag      =  np.array(Mag)
-  Site     = np.array(Site)
+  Site     = np.array(Site)*c.PhyCon['eV2wn']
   Coup     = np.array(Coup)
-  Kappa    = np.array(Kappa)
 
-  if c.OPT['read'] != 'external' and c.OPT['ModCent'] == True:
-    if c.v: print " ... centers are replaced with external data" 
-    c.checkfile(c.ExtFiles['incent'])
-    NewCent = np.loadtxt(c.ExtFiles['incent'],dtype="float")
-    if c.v(1):
-      for i in range(len(NewCent)):
-        print "     (%3d) ReadCent - LogCent = %12.4f Ang" % (i+1,np.linalg.norm((NewCent[i]-Cent[i])))
-    Cent = NewCent  
-  return Cent,DipoLen,DipoVel,Mag,Site,Coup,Kappa
+  system   = ExcSystem(ChromList,Site,Coup,Cent,DipoLen,
+                        DipoVel,Mag,Kappa)
+
+  if c.OPT['read'] != 'external':
+    system.add_geom(anum,xyz,NAtom)
+
+  return system,SelChromList
 
 
 # *****************************************************************************
 # 
 # Read data from external files
 #
-def ReadExternal():
+def ReadExternal(ChromList):
 
   # Read External files:
   if c.v():
     print "     > CHROMLIST         : %s" % c.ExtFiles['crlist']
     print "     > site energies     : %s" % c.ExtFiles['insite']
     print "     > coupling          : %s" % c.ExtFiles['incoup']
-    print "     > elec. tr. dipoles : %s" % c.ExtFiles['indipo']
+    print "     > elec. tr. dipoles : %s" % c.ExtFiles['dipo']
     print "     > chrom centers     : %s" % c.ExtFiles['incent']
 
-  # Read chromlist to identify number of chromophores 
-  # and number of transitions
-  ChromList,NChrom,NTran  =  ReadChromList()
-
-  c.NTran = []
-  for i in NTran:
-    c.NTran.append(len(i))
+  NChrom,NTran  =  ChromList.NChrom, ChromList.NTran
 
   if c.v():  
     print " ... number of chromophores         : %3d" % NChrom 
-    print " ... N. transitions per chromophore : %s"  % c.NTran 
+    print " ... N. transitions per chromophore : %s"  % NTran 
 
   # Read Site Energies
-  Site = np.zeros(sum(c.NTran))
-  Site = u.modsite(Site)
+  Site = np.zeros(sum(NTran))
+  Site = np.loadtxt(c.ExtFiles['insite'])[:,1:].flatten()
 
   # Check if the file exists and read the files
   c.checkfile(c.ExtFiles['incoup'])
   c.checkfile(c.ExtFiles['incent'])
-  c.checkfile(c.ExtFiles['indipo'])
+  c.checkfile(c.ExtFiles['dipo'])
   Coup = np.loadtxt(c.ExtFiles['incoup'],dtype="float",ndmin=1)
   Cent = np.loadtxt(c.ExtFiles['incent'],dtype="float")
-  Dipo = np.loadtxt(c.ExtFiles['indipo'],dtype="float")
+  Dipo = np.loadtxt(c.ExtFiles['dipo'],dtype="float")
 
   DipoVel = np.copy(Dipo)
   Mag     = np.copy(Dipo)
@@ -166,29 +166,162 @@ def ReadExternal():
 # Read ChromList file
 #
 def ReadChromList():
+  " Reads the ChromList file"        
 
   InFile = c.ExtFiles['crlist']
   c.checkfile(InFile)
-  File = open(InFile,'r').readlines()
-  NChrom = len(File)
 
-  ChromList = [] ; NTran = []
-  for i in range(NChrom):
-    Tmp    = File[i].split()
-    IChrom = Tmp[0]
-    ChromList.append(IChrom)
-    if c.OPT['seltran'] == True:
-      ITran  = map(int,Tmp[1:])
-      if not ITran :
+  ChromList = ChromTranList.from_crfile(InFile)
+
+  if c.OPT['seltran']:
+      nonsel = [n == 0 for n in ChromList.NTran]
+      if any(nonsel):
+        Tmp = ChromList.Chrom[nonsel.index(True)]
         ErrMsg = "Chromophore %s has no transition selected" % Tmp
         c.error(ErrMsg,"ReadChromList")
-      else:
-        NTran.append(ITran)
-  #Copy variables to common
-  c.ChromList = ChromList
-  c.NChrom    = NChrom
-  return ChromList,NChrom,NTran
 
+  return ChromList
+
+
+
+# *****************************************************************************
+# 
+# Prepare the file lists for gdvh23 version
+#
+
+def ChromListBuilder(chromlist):
+  chromfilelist = []
+  if c.OPT['env'] == 'vac'     : suffix = "_vac"
+  elif c.OPT['env'] == 'mmpol' : suffix = ""
+  for chrom in chromlist:
+    chromfilelist.append(chrom+"/"+chrom+suffix+".log")
+  return chromfilelist
+
+def CoupListBuilder(ChromList):
+  nchrom = ChromList.NChrom  
+
+  crlist = ChromList.Chrom
+
+  CoupList = []
+  CoupFileList = [] ; Prefix = ""
+  if c.OPT['env'] == 'vac'   : suffix = "_vac"
+  if c.OPT['env'] == 'mmpol' : suffix = ""
+  for i in range(nchrom):
+    for j in range(i+1,nchrom):
+      coup = crlist[i]+"."+crlist[j]
+      coupfileij = Prefix+"V_"+coup+"/V_"+coup+suffix+".log"
+      if c.OPT['coup'] != 'forster' :
+        #c.checkfile(coupfileij)
+        CoupFileList.append(coupfileij)
+        CoupList.append([i,j])
+  return CoupList,CoupFileList
+
+def preplists(ChromList):
+  ChromFileList = ChromListBuilder(ChromList.Chrom)
+  CoupList,CoupFileList = CoupListBuilder(ChromList)
+  return ChromFileList,CoupList,CoupFileList
+
+# *****************************************************************************
+#
+# Read into a property gdvh23 .log file to extract site energies, dipoles ...
+# should be called for each prop file.
+#
+
+def readgaulog(logfile):
+
+  FINDNAt = "NAtoms="
+
+  # Check if the file exists
+  c.checkfile(logfile)
+
+  # If the file exists then open it, read all data and close it
+  infile = open(logfile,'r')
+  data = infile.read().split("\n")
+  infile.close()
+
+  # Inizialize lists
+  xyz  = [] ; anum = [] ; site = []; dipo = [] ; dipovel = [] ; mag = [] ; NAtoms = []
+
+  # Read the loaded file line by line
+  i = 80
+  while i < len(data):
+    
+    # Looks for NTran:
+    if "9/41=" in data[i]:
+      NTran = int(data[i].split("9/41=")[1].split(",")[0])
+
+    # Looks for NChrom:
+    if "62=" in data[i]:
+      NChrom = int(data[i].split("62=")[1].split(",")[0])
+      if c.OPT['read'] == 'gdvh36': NAtoms = [0]*NChrom 
+
+
+    # Looks for the atomic coordinates 
+    String = "Input orientation:"
+    if String in data[i]:
+      atom = True
+      j = 0
+      while atom == True :
+        tempcen = data[i+5+j].split()
+        if len(tempcen) != 6:
+          atom = False
+        else:
+          xyz.append(map(float,tempcen[3:6]))
+          anum.append(int(tempcen[1]))
+          j = j + 1
+
+    # Extracts the dipole moments (length)
+    elif "electric dipole" in data[i]:
+      atom = True
+      j = 0
+      while atom == True :
+        tempdip = data[i+2+j].split()
+        if len(tempdip) != 6 :
+          atom = False
+        else:
+          dipo.append(map(float,tempdip[1:4]))
+          j = j + 1
+
+    # Extracts the dipole moments (velocity)
+    elif "transition velocity dipole" in data[i]:
+      atom = True
+      j = 0
+      while atom == True :
+        tempdip = data[i+2+j].split()
+        if len(tempdip) != 6 :
+          atom = False
+        else:
+          dipovel.append(map(float,tempdip[1:4]))
+          j = j + 1
+
+    # Extracts the magnetic moment
+    elif "transition magnetic dipole" in data[i]:
+      atom = True
+      j = 0
+      while atom == True :
+        tempdip = data[i+2+j].split()
+        if len(tempdip) != 4 :
+          atom = False
+        else:
+          mag.append(map(float,tempdip[1:4]))
+          j = j + 1
+
+    # Extracts the site energy values
+    elif "nm " in data[i]:
+      site.append(float(data[i].split()[4]))
+
+    # Compute the center of the chromophore
+    elif FINDNAt in data[i]:
+      NAtoms.append(data[i].split(FINDNAt)[1].split()[0])
+
+    i += 1
+
+
+  NChrom = 1
+  NAtoms = int(NAtoms[0])
+  NTran  = len(site)
+
+  return (anum,xyz,site,dipo,dipovel,mag,NAtoms,NTran,NChrom)
 
 
 # *****************************************************************************
@@ -402,101 +535,11 @@ def readgaulog36(logfile):
     anum = anum + anum1[FragAt[i]].tolist()
     xyz  = xyz  +  xyz1[FragAt[i]].tolist()
 
-  # Save variables in common
-  c.ChromList = range(1,NChrom+1)
-  c.NAtom     = NAtoms
-  c.NChrom    = NChrom 
-  c.NTran     = NTran
-  c.anum      = anum
-  c.xyz       = xyz
-  
-
-  return site,dipo,dipovel,mag,Coup
+  return site,dipo,dipovel,mag,Coup,NTran,anum,xyz,NAtoms
 
 
-# 
-#  Select properties
-#
 
-def delist(List,NChrom,IndChrom,Sel):
-  k = 0
-  NewList = []
-  for IChrom in range(NChrom):
-    for ITran in range(c.NTran[IChrom]):
-      if IChrom in IndChrom:
-        Ind = IndChrom.index(IChrom)
-        if ITran+1 in Sel[Ind]:
-          NewList.append(List[k])
-      k += 1
-  return NewList
-
-def seltran(Site,Dipo,DipoVel,Mag,Cent,Coup,Kappa=False):
-
-  NChrom = c.NChrom
-  # Read the external file containg the selected transtions
-  IFile = c.ExtFiles['crlist']
-  if c.v():
-    print "   ... transition of interests will be selected on the basis of %s file" % IFile  
-  SelChromList,SelNChrom,Sel = ReadChromList()
-
-  if c.OPT['read'] == 'gdvh36': 
-    ChromList = map(str,range(1,NChrom+1))
-  else:
-    ChromList = c.ChromList
-
-  IndChrom = [ ChromList.index(x) for x in SelChromList ]
-
-
-  Site      = delist(Site,NChrom,IndChrom,Sel)
-  Dipo      = delist(Dipo,NChrom,IndChrom,Sel)
-  DipoVel   = delist(DipoVel,NChrom,IndChrom,Sel)
-  Mag       = delist(Mag,NChrom,IndChrom,Sel)
-  Cent      = delist(Cent,NChrom,IndChrom,Sel)
-
-  #
-  # Select couplings
-  #
-
-  k = 0
-  NewCoup = [] ; NewKappa = []
-  for I in range(NChrom):
-    for J in range(I+1,NChrom):
-      for it in range(c.NTran[I]):
-        for jt in range(c.NTran[J]):
-          if I in IndChrom and J in IndChrom:
-            IndI = IndChrom.index(I)
-            IndJ = IndChrom.index(J)
-            if it+1 in Sel[IndI] and jt+1 in Sel[IndJ]:
-              NewCoup.append(Coup[k])
-              if Kappa is not False: NewKappa.append(Kappa[k])
-          k += 1
-
-  #
-  # Select geometry (for later usage)
-  #
-  if c.OPT['read'] == 'g16' and SelNChrom != NChrom:
-    if c.v():
-      print " "*7+"cutting geometry, leaving only selected chromophores"
-    xyz = []; anum = []; NAtom = []
-    End = 0
-    for i in range(NChrom):
-      Start = End
-      End   = Start + c.NAtom[i] 
-      if i in IndChrom: 
-        # Append to new list
-        xyz  = xyz  +  c.xyz[Start:End]
-        anum = anum + c.anum[Start:End]
-        NAtom.append(c.NAtom[i])
-    c.NAtom = NAtom
-    c.anum  = anum
-    c.xyz   = xyz 
-  #
-  # Reset NTran and NChrom properly
-  #
-  NTran = []
-  for i in Sel:
-    NTran.append(len(i))
-  NChrom = len(NTran)
+def readcouph36(logfile): 
 
   c.NChrom = NChrom
   c.NTran = NTran # Save NTran to Common 
