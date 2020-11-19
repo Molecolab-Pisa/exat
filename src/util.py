@@ -663,39 +663,44 @@ def modsite(system):
     lines = InFile.readlines()
 
 
+  # Process reference file
   for line in lines: 
-    data  = line.split()
+    data  = line.split('#')[0].split()
 
-    if len(data) < 3:
+    if not data: continue
+
+    if len(data) < 2:
       c.error("Wrong format for modsite")
 
     chrom = data[0]
 
-    try:
-      itran = int(data[1])
-    except:
-      c.error("Transition number not understood: %s" % data[1])
+    nsite = len(data[1:])
 
-    k = crlist.TrIdx(chrom,itran) - 1
+    for itran,datai in enumerate(data[1:],1):
+
+      k = crlist.TrIdx(chrom,itran) - 1
   
-    if "+" in data[2] or "-" in data[2]: shift = True  # check if we want to shift or not
-    else: shift = False
+      if "+" in datai or "-" in datai: 
+        shift = True  # check if we want to shift or not
+      else:
+        shift = False
 
-    try:
-      Ene = float(data[2])
-    except:  
-      c.error('Site energy value not understood: %s' % data[2])
-    if Ene is not None:
-      if shift == False:
-        if c.v():
-          print "     Chrom: %10s   Tran: %3d  site energy set to %8.5f eV"\
-                % (chrom,itran,Ene)
-        exc.H[k,k] = Ene*c.PhyCon['eV2wn']
-      elif shift == True:
-        if c.v():
-          print "     Chrom: %10s   Tran: %3d  site energy sfhit of %8.5f eV"\
-                % (chrom,itran,Ene)
-        exc.H[k,k] += Ene*c.PhyCon['eV2wn']
+      try:
+        Ene = float(datai)
+      except:  
+        Ene = None
+      #c.error('Site energy value not understood: %s' % data[2])
+      if Ene is not None:
+        if shift == False:
+          if c.v():
+            print "     Chrom: %10s   Tran: %3d  site energy set to %8.5f eV"\
+                  % (chrom,itran,Ene)
+          exc.H[k,k] = Ene*c.PhyCon['eV2wn']
+        elif shift == True:
+          if c.v():
+            print "     Chrom: %10s   Tran: %3d  site energy sfhit of %8.5f eV"\
+                  % (chrom,itran,Ene)
+          exc.H[k,k] += Ene*c.PhyCon['eV2wn']
  
   exc.update_sitecoup()
 
@@ -1108,7 +1113,7 @@ def prtcoup(system):
         for l in range(NTran[j]):
           kk = sum(NTran[:i])+k
           ll = sum(NTran[:j])+l
-          if kk == ll: continue
+          if kk >= ll: continue
           if abs(M[kk,ll]) > thresh:
             # Print on screen
             print "%6s %6s  %3d %3d   %10.4f   %10.4f   %10.4f" \
@@ -1124,7 +1129,7 @@ def prtcoup(system):
 def prtsite(system):
 
   NTran = system.NTran
-  Site  = system.Site
+  Site  = system.Site/c.PhyCon['eV2wn']
 
   OutFile = open(c.OutFiles['site'],'w')
   z = 0
