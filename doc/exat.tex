@@ -32,23 +32,22 @@
 \end{center}
 \normalsize
 \begin{center}
-\emph{Sandro Jurinovich}\footnote{\texttt{sandro.jurinovich@for.unipi.it}},
-\emph{Lorenzo Cupellini}\footnote{\texttt{lorenzo.cupellini@for.unipi.it}},
+\emph{Sandro Jurinovich},
+\emph{Lorenzo Cupellini}\footnote{\texttt{lorenzo.cupellini@unipi.it}},
  Ciro Guido \& Benedetta Mennucci
 \end{center}
 
 \section{Version}
 
-This documentation refers to version 1.0.0 
+This documentation refers to version 1.2.0 
 
 Although the development is devoted to mantain the compatibility with previous versions, the newer versions will probably show small differences in the behaviour of the program or in the defaults, in addition to new features. Before using the program, check that the version corresponds to the one reported in this manual.
 
 \section{Presentation}
 
 \texttt{EXAT} (Excitonic Analysis Tool) is a Molecolab tool\footnote{\texttt{http://molecolab.dcci.unipi.it} ---
-For help or to require a copy of the program, please write to
-\texttt{benedetta.mennucci@unipi.it}.}. 
-
+For help or to report a bug, please write to
+\texttt{lorenzo.cupellini@unipi.it}.}. You can obtain the latest version of the program at \texttt{https://doi.org/10.5281/zenodo.3948073}.
 
 The program performs excitonic calculations from external input, or from the results of Gaussian (R) 16 calculations.
 
@@ -102,7 +101,7 @@ This input tells \texttt{EXAT} to consider only fragments \texttt{1}, \texttt{3}
 \texttt{EXAT} is able to read input from external text files. In this case, several input files are needed. A \texttt{chromlist} file as described in Section~\ref{sec:input} is required, and the transitions should always be specified. The total number of transitions is calculated from the transitions specified in this file.
 
 \paragraph*{Site energy file. } 
-This file specifies the energy of the transitions. Its default name is \texttt{site.in}. It should specify the transition energy of every chromophore, one line per chromophore, \emph{in the same order as the \texttt{\emph{chromlist}} file.} The first column should contain the chromophore number. The other column should contain the site energies of the transitions. For example:
+This file specifies the energy of the transitions (In units of eV). Its default name is \texttt{site.in}. It should specify the transition energy of every chromophore, one line per chromophore, \emph{in the same order as the \texttt{\emph{chromlist}} file.} The first column should contain the chromophore number. The other column should contain the site energies of the transitions. For example:
 
 \begin{quote}
 \begin{verbatim}
@@ -113,13 +112,13 @@ This file specifies the energy of the transitions. Its default name is \texttt{s
 \end{quote}
 
 \paragraph*{Dipoles file. } 
-This file specifies the transition dipole moments. Its default name is \texttt{dipo.in}. It should contain a line for every transition, specifying the components $x$, $y$ and $z$ of the transition dipole. The dipoles should be specified in the same order as in the \texttt{chromlist} file, and then in the order of the transitions. The dipole moment units are Debye.
+This file specifies the transition dipole moments (In Debye units). Its default name is \texttt{dipo.in}. It should contain a line for every transition, specifying the components $x$, $y$ and $z$ of the transition dipole. The dipoles should be specified in the same order as in the \texttt{chromlist} file, and then in the order of the transitions. 
 
 \paragraph*{Centers file. } 
 This file specifies the centers of the transitions. Its default name is \texttt{cent.in}. The format is the same as the dipoles file. The units are Angstrom.
 
 \paragraph*{Coupling file. } 
-This file specifies all couplings between transitions on different chromophores. The default name is \texttt{coup.in}. The file contains one coupling per line and should be sorted in increasing order of chromophore and transition (Chrom1 Chrom2 Tran1 Tran2). 
+This file specifies all couplings between transitions on different chromophores. The default name is \texttt{coup.in}. The file contains one coupling per line and should be sorted in increasing order of chromophore and transition (\texttt{Chrom1 Chrom2 Tran1 Tran2}, excluding \texttt{Chrom1 $=$ Chrom2}). 
 
 \emph{The format of this file will be changed in later versions.}
 
@@ -198,7 +197,7 @@ This section describes all command-line options for \texttt{EXAT}.
 
 \paragraph*{Options for Centers:}
 \begin{description}[labelsep=10pt, align=left, labelwidth=80pt,labelindent=0pt,leftmargin=90pt]
-\item[\texttt{-{}-cent}] Followed by a string that specifies how to compute the chromophore center. The \texttt{geom} option tells \texttt{EXAT} to compute the center as the geometrical center of the chromophore, while \texttt{mass} is used to compute the chromophore center as the center of mass of the chromophore.Finally, a range of atoms can be specified as a string; the center will be computed as the geometrical center of these atoms. 
+\item[\texttt{-{}-cent}] Followed by a string that specifies how to compute the chromophore center. The \texttt{geom} option tells \texttt{EXAT} to compute the center as the geometrical center of the chromophore, while \texttt{mass} is used to compute the chromophore center as the center of mass of the chromophore.Finally, a range of atoms can be specified as a string; the center will be computed as the geometrical center of these atoms (The same for all chromophores) . 
 \item[\texttt{-{}-incent}] Followed by a center file. The format of the center file is described in Section~\ref{sec:input_ext}. The calculated centers will be overridden.
 \end{description}
 
@@ -208,16 +207,18 @@ This section describes all command-line options for \texttt{EXAT}.
 \item[\texttt{-{}-cleancoup}] Followed by a threshold. All couplings below the threshold will be set to zero.
 \item[\texttt{-{}-refrind}] Followed by the medium refraction index for point-dipole coupling calculations. This option is only valid with the \texttt{-{}-coup PDA} option.
 \item[\texttt{-{}-scalecoup}] Followed by a scaling factor. All couplings will be scaled by that factor. 
-\item[\texttt{-{}-incoup}] Followed by a file containing all couplings. The format of the coupling file is described in Section~\ref{sec:input_ext}. Any couplings read from other input will be overridden.
+\item[\texttt{-{}-incoup}] Followed by a file containing all couplings. The format of the coupling file is described in Section~\ref{sec:input_ext}. This option is only valid for external input.
+\item[\texttt{-{}-modcoup}] Followed by a file containing the couplings to modify. TODO. 
+
 \end{description}
 
 \paragraph*{Options for Transition Dipoles:}
 \begin{description}[labelsep=10pt, align=left, labelwidth=80pt,labelindent=0pt,leftmargin=90pt]
 \item[\texttt{-{}-scaledipo}] Followed by a scaling factor. All transition dipoles will be scaled by that factor.  
 \item[\texttt{-{}-reorient}] Followed by the IDs of two atoms that define an axis, with respect to which the transition dipoles will be reoriented. Signs of transition dipoles will be changed until all dipoles point in the same direction as the defined axis. The signs of the couplings will be changed accordingly.
-\item[\texttt{-{}-forcedipo}] If used with the \texttt{-{}-reorient} option, forces the dipole to be parallel to the defined axis.
+%\item[\texttt{-{}-forcedipo}] If used with the \texttt{-{}-reorient} option, forces the dipole to be parallel to the defined axis.
 \item[\texttt{-{}-anadipo}] Followed by an input file that specifies a reference frame for every chromophore defined in \texttt{chromlist}. This option activates the transition dipole direction analysis, see Section~\ref{sec:anadipo} for a brief description. It cannot be used with external input.
-\item[\texttt{-{}-incent}] Followed by a transition dipole file. The format of the dipole file is described in Section~\ref{sec:input_ext}. The transition dipoles read in input will be overridden.
+\item[\texttt{-{}-indipo}] Followed by a transition dipole file. The format of the dipole file is described in Section~\ref{sec:input_ext}. The transition dipoles read in input will be overridden.
 \end{description}
 
 \paragraph*{Options to compute rotatory strength:}
@@ -278,14 +279,16 @@ The azimuth ($\theta$) and polar ($\phi$) angles are then defined as follows:
 \end{equation}
 where $\hat{\mathbf{x}}$, $\hat{\mathbf{y}}$ and $\hat{\mathbf{z}}$ are the direction of the axes in the internal reference frame, $\bs{\mu}$ is the dipole, and $\mu$ is its magnitude. The angle $\theta$ therefore represents the deviation of $\bs{\mu}$ from the \texttt{ABC} plane, and $\phi$ is the angle that the projection of $\bs{\mu}$ on the \texttt{ABC} plane makes with the $\vec{AB}$ vector. 
 
-The input file for dipole analysis has the following format. It contains one line per chromophore, in the same order as the \texttt{chromlist} file. The first column is the chromophore number. The following three columns contain the IDs of three atoms that define the reference frame as described above. The following columns can be used for changing the values of $\theta$ and $\phi$. As an example, for the same system shown above: 
+Before running the analysis, the transition dipoles are reoriented in order to be as close as possible to a pre-defined set of angles. In this way, this option can be used in place of the \texttt{-{}-reorient} option to reorient different transitions in different ways.
+
+The input file for dipole analysis has the following format. It contains one line per chromophore, in the same order as the \texttt{chromlist} file. The first column is the chromophore number. The following three columns contain the IDs of three atoms that define the reference frame as described above. The following columns can be used to define a pre-defined orientation in terms of $\theta$ and $\phi$, and possibly to fix the dipole in that orientation. As an example, for the same system shown above: 
 
 \begin{framed}
 \begin{quote}
 \begin{verbatim}
-1    3 11 6    15.0     XX  0.0    90.0
-3    4 10 5     0.0    0.0 
-4    3 11 6     0.0   60.0   XX   -40.0
+1    3 11 6     0.0    0.0   0.0   90.0
+3    4 10 5     0.0    0.0f 
+4    3 11 6     0.0   60.0   0.0  -40.0f
 \end{verbatim}
 \end{quote}
 \end{framed}
@@ -293,10 +296,11 @@ The input file for dipole analysis has the following format. It contains one lin
 This file specifies to use atoms 3,11, and 6 of chromophores 1 and 4 for building their internal reference frames, whereas atoms 4,10, and 5 are used for chromophore 3. 
 The other columns specify that:
 \begin{itemize}
-\item For transition 1 of \texttt{1}, $\theta$ is put to 15$^{\circ}$ and $\phi$ is unchanged
-\item For transition 2 of \texttt{1}, $\theta$ is put to 0$^{\circ}$ and $\phi$ to 90$^{\circ}$ 
-\item For transition 1 of \texttt{3}, $\theta$ and $\phi$ are set to zero
-\item For any other transition of \texttt{3}, the angles are unchanged 
+\item For transition 1 of \texttt{1}, reference $\theta$ and $\phi$ are 0. The sign of the transition is changed if the dipole is oriented in the opposite direction.
+\item For transition 2 of \texttt{1}, reference $\theta$ is 0 and $\phi$ is 90. This means that if the dipole is oriented with $-180 < \phi < 0$, the sign of the transition will be changed.
+\item For transition 1 of \texttt{3}, $\theta$ and $\phi$ references are 0, but now $\phi$ is forced to be zero.
+\item For any other transition of \texttt{3}, the references are 0.
+\item For transition 2 of \texttt{4}, the angle $\phi$ is forced to be -40.
 %\item \dots
 \end{itemize}
 
