@@ -128,6 +128,7 @@ def ReadExternal(ChromList):
     print "     > coupling          : %s" % c.ExtFiles['incoup']
     print "     > elec. tr. dipoles : %s" % c.ExtFiles['dipo']
     print "     > chrom centers     : %s" % c.ExtFiles['incent']
+    print "     > magn. tr. dipoles : %s" % c.ExtFiles['magdipo']
 
   NChrom,NTran  =  ChromList.NChrom, ChromList.NTran
 
@@ -147,12 +148,16 @@ def ReadExternal(ChromList):
   Cent = np.loadtxt(c.ExtFiles['incent'],dtype="float")
   Dipo = np.loadtxt(c.ExtFiles['dipo'],dtype="float")
 
-  DipoVel = np.copy(Dipo)
-  Mag     = np.copy(Dipo)
+  if c.OPT['RCalc'] != 'mu': 
+    c.checkfile(c.ExtFiles['magdipo'])
+    Mag = np.loadtxt(c.ExtFiles['magdipo'],dtype="float")
+  else:
+    Mag = np.zeros(Dipo.shape)
+
   Cent    = np.array(Cent)
   Site    = np.array(Site)
   Dipo    = np.array(Dipo)/c.PhyCon['ToDeb']
-  DipoVel = np.array(DipoVel)
+  DipoVel = np.copy(Dipo)
   Mag     = np.array(Mag)
   Coup    = np.array(Coup)
 
@@ -491,7 +496,7 @@ def readgaulog36(logfile):
           elif c.OPT['coup'] == 'total' and '> Explicit MMPol'  in line:
             ExplCoup += [(int(line[25:29]),int(line[31:35]),int(line[43:47]),int(line[49:53]),float(line[55:69]))]
       else:
-        # read couplings for g16 (plain)
+        # read couplings for g16 
         while True:
           line = f.readline()
           if not line: break

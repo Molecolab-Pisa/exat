@@ -107,6 +107,7 @@ PhyCon =   {
 # ******************************************************************************
 #
 # Atomic Masses
+# taken from: http://physics.nist.gov/PhysRefData/Compositions/
 #
 # ******************************************************************************
 
@@ -229,6 +230,7 @@ AtMass =  {    1 :    1.0079400,
 
 ExtFiles = {
    # Input Files
+   'load'         : 'exat.npz',       # Exat npz file
    'incoup'       : 'coup.in',        # Coupling values (cm-1)
    'insite'       : 'site.in',        # Site energies (eV)
    'incent'       : 'cent.in',        # Postion of the centers (Ang)

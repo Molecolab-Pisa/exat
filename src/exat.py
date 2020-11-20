@@ -174,15 +174,15 @@ print "\n (4) Compute the excitonic properties"
 EXCDipoLen = trans.EXCalc(system.coeff,system.DipoLen)
 
 # Compute Linear Absorption Spectrum
-print "\n ... Compute the Linear Absorption Spectrum" 
+print "\n ... Compute the Linear Absorption Intensities" 
 EXCDipo2   = np.sum(EXCDipoLen**2,axis=1)
 
 # Compute Linear Dichroism Spectrum
-print "\n ... Compute the Linear Dichroism Spectrum" 
+print "\n ... Compute the Linear Dichroism Intensities" 
 LD = trans.LinDichro(EXCDipoLen)
 
 # Compute Rotational Strength ...
-print "\n ... Compute the Circular Dichroism Spectrum" 
+print "\n ... Compute the Circular Dichroism Intensities" 
 EXCRot = trans.RotStrength(EEN,system.Cent,system.coeff,system.DipoLen,
                              EXCDipoLen,
                              system.DipoVel,MagInt,RxDel,system.Site)
