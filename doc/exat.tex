@@ -101,7 +101,7 @@ This input tells \texttt{EXAT} to consider only fragments \texttt{1}, \texttt{3}
 \texttt{EXAT} is able to read input from external text files. In this case, several input files are needed. A \texttt{chromlist} file as described in Section~\ref{sec:input} is required, and the transitions should always be specified. The total number of transitions is calculated from the transitions specified in this file.
 
 \paragraph*{Site energy file. } 
-This file specifies the energy of the transitions (In units of eV). Its default name is \texttt{site.in}. It should specify the transition energy of every chromophore, one line per chromophore, \emph{in the same order as the \texttt{\emph{chromlist}} file.} The first column should contain the chromophore number. The other column should contain the site energies of the transitions. For example:
+This file specifies the energy of the transitions (Units are eV). Its default name is \texttt{site.in}. It should specify the transition energy of every chromophore, one line per chromophore, \emph{in the same order as the \texttt{\emph{chromlist}} file.} The first column should contain the chromophore number. The other column should contain the site energies of the transitions. For example:
 
 \begin{quote}
 \begin{verbatim}
@@ -112,13 +112,13 @@ This file specifies the energy of the transitions (In units of eV). Its default 
 \end{quote}
 
 \paragraph*{Dipoles file. } 
-This file specifies the transition dipole moments (In Debye units). Its default name is \texttt{dipo.in}. It should contain a line for every transition, specifying the components $x$, $y$ and $z$ of the transition dipole. The dipoles should be specified in the same order as in the \texttt{chromlist} file, and then in the order of the transitions. 
+This file specifies the transition dipole moments. Its default name is \texttt{dipo.in}. It should contain a line for every transition, specifying the components $x$, $y$ and $z$ of the transition dipole. The dipoles should be specified in the same order as in the \texttt{chromlist} file, and then in the order of the transitions. The dipole moment units are Debye.
 
 \paragraph*{Centers file. } 
 This file specifies the centers of the transitions. Its default name is \texttt{cent.in}. The format is the same as the dipoles file. The units are Angstrom.
 
 \paragraph*{Coupling file. } 
-This file specifies all couplings between transitions on different chromophores. The default name is \texttt{coup.in}. The file contains one coupling per line and should be sorted in increasing order of chromophore and transition (\texttt{Chrom1 Chrom2 Tran1 Tran2}, excluding \texttt{Chrom1 $=$ Chrom2}). 
+This file specifies all couplings between transitions on different chromophores. The default name is \texttt{coup.in}. The file contains one coupling per line and should be sorted in increasing order of chromophore and transition (\texttt{Chrom1 Chrom2 Tran1 Tran2}, excluding \texttt{Chrom1 $=$ Chrom2}). The units are cm$^{-1}$.
 
 \emph{The format of this file will be changed in later versions.}
 
