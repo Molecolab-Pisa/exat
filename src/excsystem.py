@@ -518,6 +518,8 @@ def load_npz(infile):
     obj.Cent    = data['Cent']
     if 'Kappa' in data:
         obj.Kappa   = data['Kappa']
+        if obj.Kappa.tolist() is None:
+          obj.Kappa = None
     obj.coup    = obj.Coup
     obj.site    = obj.Site
     
@@ -525,8 +527,14 @@ def load_npz(infile):
         obj.anum    = data['anum']
         obj.xyz     = data['xyz']
         obj.NAtom   = data['NAtom']
+        if obj.anum.tolist() is None:
+          obj.anum = None
+        if obj.xyz.tolist() is None:
+          obj.xyz = None
+
     except KeyError:
         pass
+
 
     return obj
 
