@@ -376,15 +376,15 @@ def readgaulog36(logfile):
       if 'Electronic Coupling for Excitation Energy Tranfer' in line: break
 
       # Looks for NTran:
-      if "9/41=" in line:
+      if line.startswith(' 9/') and '41=' in line:
         try:
-          NTran = int(line.split("9/41=")[1].split(",")[0])
+          NTran = int(line.split("41=")[1].split(",")[0])
         except:
-          NTran = int(line.split("9/41=")[1].split("/")[0])
+          NTran = int(line.split("41=")[1].split("/")[0])
           
 
       # Looks for NChrom:
-      if "62=" in line:
+      if line.startswith(' 1/') and "62=" in line:
         NChrom = int(line.split("62=")[1].split(",")[0])
         NAtoms = [0]*NChrom 
         FragAt = [None]*NChrom
@@ -410,7 +410,7 @@ def readgaulog36(logfile):
             break
 
       # Looks for the atomic coordinates 
-      elif "Input orientation:"  in line:
+      elif ("Input orientation:" in line) or ("Standard orientation:" in line):
         atom = True
         j = 0
         while atom == True :
