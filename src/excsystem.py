@@ -52,6 +52,8 @@ class ChromTranList(OrderedDict):
         for k,v in self.iteritems():
             try: 
                 iter(v)
+                # Copy
+                self[k] = [x for x in v]
             except:
                 self[k] = [v]
 
@@ -129,11 +131,39 @@ class ChromTranList(OrderedDict):
     
     @property
     def Chrom(self):
+        "Returns list with chromophore names/IDs"
         return self.keys()
         
     def index(self,x):
+        "Returns index of chromophore given name"
         y = str(x)
         return self.keys().index(y)
+
+    def append(self,chrom):
+        "Adds a new chromophore w. zero transitions"
+ 
+        ch = str(chrom)
+        if ch in self.keys():
+            raise ValueError, 'Chromophore %s already in ChromList!' % (ch)
+
+        self[ch] = []
+
+    def add_tran(self,chrom):
+        "Adds a transition to the chromophore chrom"
+
+        Ch = self[chrom]
+        if len(Ch) > 0:
+          JTr = self[chrom][-1] + 1
+        else:
+          JTr = 1
+
+        self[chrom].append(JTr)
+          
+
+    def copy(self):
+        "Return deep copy of the object"
+        cls = type(self)
+        return cls(self.iteritems())
 
     def __repr__(self):
         cname  = 'excsystem.'+self.__class__.__name__
@@ -293,7 +323,6 @@ class ExcSystem(object):
     def buildmatrix(self):
         
         coup = self.coup
-        # Convert site energies in cm-1
         site = self.site
 
         # Check the dimensions
@@ -358,7 +387,7 @@ class ExcSystem(object):
     def copy(self):    
         " Try to return a deep copy of the object "
         cls = type(self)
-        crlist_tmp = self.ChromList.iteritems()
+        crlist_tmp = self.ChromList.copy()
         new = cls(crlist_tmp,self.Site,self.Coup,
                 self.Cent,self.DipoLen,self.DipoVel,self.Mag,
                 self.Kappa)

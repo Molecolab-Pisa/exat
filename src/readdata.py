@@ -481,7 +481,7 @@ def readgaulog36(logfile):
 
     # read couplings
     if DoCoup: 
-      if c.v(): print  " ... reading couplings in %s file using %s values" % (c.OPT['logfile'],c.OPT['coup'])
+      if c.v(): print  " ... reading couplings in %s using %s values" % (logfile,c.OPT['coup'])
       Cdtyp = [('Ch1',int),('Tr1',int),('Ch2',int),('Tr2',int),('Coup',float)]
       Coup = []
 
@@ -541,14 +541,6 @@ def readgaulog36(logfile):
 
   return site,dipo,dipovel,mag,Coup,NTran,anum,xyz,NAtoms
 
-
-
-def readcouph36(logfile): 
-
-  c.NChrom = NChrom
-  c.NTran = NTran # Save NTran to Common 
-
-  return Site,Dipo,DipoVel,Mag,Cent,NewCoup,NewKappa
 
 # *****************************************************************************
  
