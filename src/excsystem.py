@@ -534,7 +534,7 @@ def load_npz(infile):
 
     obj  = ExcSystem(chromlist)
 
-    if 'H' in data:
+    if 'H' in data and data['H'].tolist() is not None:
         obj.H = data['H']
     elif 'site' in data:
         obj.site = data['site']
