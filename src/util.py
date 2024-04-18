@@ -169,9 +169,10 @@ def GetOpts():
   grpadv.add_argument('--ldaxis',
     help='Choose the reference axis for LD calculation')
 
+
   # Verobisity of the output and printing options
   grpprt = parser.add_argument_group(' Printout and verbosity options')
-  grpprt.add_argument('-v',action='count',
+  grpprt.add_argument('-v',action='count',default=0,
     help='Increase the verbosity of the output')
   grpprt.add_argument('-q',action="store_true",
     help='Quiet output: minimum printout')
