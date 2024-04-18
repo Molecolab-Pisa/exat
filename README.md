@@ -20,7 +20,7 @@ EXAT - EXcitonic Analysis Tool
 
 Disclaimer and copyright:
 -------------------------
-  EXAT is Copyright (C) 2014-2017 S. Jurinovich, L. Cupellini,
+  EXAT is Copyright (C) 2014-2024 L. Cupellini, S. Jurinovich,
   C.A. Guido, and B. Mennucci
 
   The terms for using, copying, modifying, and distributing EXAT 
@@ -28,17 +28,22 @@ Disclaimer and copyright:
       
 Contacts:
 -------------------------
-  Benedetta Mennucci
-  benedetta.mennucci@unipi.it
+  Lorenzo Cupellini
+
+  lorenzo.cupellini@unipi.it
+
   Dipartimento di Chimica e Chimica Industriale
+
   Via G. Moruzzi 13, I-56124 Pisa PI, Italy
 
 Documentation:
 -------------------------
   The main documentation for EXAT usage is in doc/
   There is also a limited help for commands:
+```
     exat.py -h
     spectrum.py -h
+```
 
   Some examples of usage can be found in examples/
 
@@ -59,8 +64,9 @@ System Requirements:
   
 Installation and Testing:
 -------------------------
-  Once verified the system requirements the executables `exat.py` 
+  Once verified the system requirementsi, the executables `exat.py` 
   and `spectrum.py` can be directly run. 
+
   You may add the `src/` directory to your PATH, or link `exat.py`
   and spectrum.py in your `bin/` directory.
 
@@ -69,9 +75,13 @@ Installation and Testing:
   $ make
   ```
 
+  Check carefully the `POSSIBLE FAILURE` indications. 
+  A sign change in the exciton coefficients is not a problem.
+
 Program's citation:
 -------------------------
   Please cite this program as:
+
   S. Jurinovich, L. Cupellini, C.A. Guido, B. Mennucci,
   "EXAT - EXcitonic Analysis Tool", 
   J. Comput. Chem. 2018, 39, 279-286, DOI: 10.1002/jcc.25118 
