@@ -4,7 +4,7 @@ EXAT - EXcitonic Analysis Tool
   EXAT is a tool developed by the Molecolab group at the
   Department of Chemistry, University of Pisa, Italy.
   For the other Molecolab tools please visit the website
-  http://molecolab.dcci.unipi.it/tools/intro.html
+  http://molecolab.dcci.unipi.it/software.html
 
   EXAT is written in python. It is designed to compute the 
   excitonic properties of a multichromophoric system and 
@@ -52,15 +52,16 @@ System Requirements:
   The program has been tested with the following configuration
   on linux systems:
 
-*    `python` version 2.6.8 and 2.7.2
-*    `numpy` version 1.8.1 and 1.9.1 
-*    `scipy` version 0.15.1 (_*_)
-*    `matplotlib` version 1.4.2 (_*_)(_**_) 
+*    `python` version 2.7.2, 2.7.17, 3.7.7
+*    `numpy` version 1.9, 1.16, 1.21
+*    `scipy` version 1.7.3 (_*_)
+*    `matplotlib` version 2.2.3, 3.2.2 (_*_)(_**_) 
 
   (_*_)  Only needed to run `spectrum.py`
   (_**_) Only needed for live spectrum plotting 
 
-  Please, run tests to check your system compatiblity
+  Please, run tests to check your system compatiblity. 
+  Note that the GUI will only work with python3
   
 Installation and Testing:
 -------------------------

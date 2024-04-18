@@ -47,7 +47,7 @@ Although the development is devoted to mantain the compatibility with previous v
 
 \texttt{EXAT} (Excitonic Analysis Tool) is a Molecolab tool\footnote{\texttt{http://molecolab.dcci.unipi.it} ---
 For help or to report a bug, please write to
-\texttt{lorenzo.cupellini@unipi.it}.}. You can obtain the latest version of the program at \texttt{https://doi.org/10.5281/zenodo.3948073}.
+\texttt{lorenzo.cupellini@unipi.it}.}. You can obtain the latest version of the program at \texttt{https://doi.org/10.5281/zenodo.3948072}.
 
 The program performs excitonic calculations from external input, or from the results of Gaussian (R) 16 calculations.
 
@@ -66,7 +66,7 @@ The program performs excitonic calculations from external input, or from the res
 
 \subsection{Needed input files}\label{sec:input}
 
-Before running EXAT, you need a calculation with Gaussian16 on the system of interest with the \texttt{eet=fragment} keyword. An example input file is shown in the following
+Before running \texttt{EXAT}, you need a calculation with Gaussian16 on the system of interest with the \texttt{eet=fragment} keyword. An example input file is shown in the following
 \begin{quote}
 \begin{verbatim}
 #p td(nstates=4) b3lyp/6-31G(d) eet(fragment=4)
@@ -128,7 +128,7 @@ The command-line call to \texttt{EXAT} depends on the type of input (see Section
 
 \subsubsection{Running from Gaussian 16 output}
 
-The command-line syntax for running EXAT from a the Gaussian logfile is:
+The command-line syntax for running \texttt{EXAT} from a the Gaussian logfile is:
 
 \begin{framed}
 \begin{quote}
@@ -172,7 +172,8 @@ This section describes all command-line options for \texttt{EXAT}.
 \paragraph*{Input options:}
 \begin{description}[labelsep=10pt, align=left, labelwidth=80pt,labelindent=0pt,leftmargin=90pt]
 \item[\texttt{-e}] Read all input from external files (Sec.~\ref{sec:input_ext}) 
-\item[\texttt{-{}-log,-i}] Name of the Gaussian logfile. This option is only valid if \texttt{gdvh36} or \texttt{oldh36} versions are used.
+\item[\texttt{-{}-log,-i}] Name of the Gaussian logfile. 
+\item[\texttt{-{}-load,-l}] Load an exat \texttt{.npz} file instead of a log file
 \end{description}
 
 \paragraph*{Output options:}
@@ -217,7 +218,7 @@ This section describes all command-line options for \texttt{EXAT}.
 \item[\texttt{-{}-scaledipo}] Followed by a scaling factor. All transition dipoles will be scaled by that factor.  
 \item[\texttt{-{}-reorient}] Followed by the IDs of two atoms that define an axis, with respect to which the transition dipoles will be reoriented. Signs of transition dipoles will be changed until all dipoles point in the same direction as the defined axis. The signs of the couplings will be changed accordingly.
 %\item[\texttt{-{}-forcedipo}] If used with the \texttt{-{}-reorient} option, forces the dipole to be parallel to the defined axis.
-\item[\texttt{-{}-anadipo}] Followed by an input file that specifies a reference frame for every chromophore defined in \texttt{chromlist}. This option activates the transition dipole direction analysis, see Section~\ref{sec:anadipo} for a brief description. It cannot be used with external input.
+\item[\texttt{-{}-anadipo}] Followed by an input file that specifies a reference frame for every chromophore defined in \texttt{chromlist}. This option activates the transition dipole direction analysis, see Section~\ref{sec:anadipo} for a brief description. It cannot be used with external input. When this option is activated, \texttt{EXAT} will try to reorient dipoles automatically.
 \item[\texttt{-{}-indipo}] Followed by a transition dipole file. The format of the dipole file is described in Section~\ref{sec:input_ext}. The transition dipoles read in input will be overridden.
 \end{description}
 
@@ -242,6 +243,7 @@ The program prints various files during its execution. The prefix for output fil
 \item[\texttt{matrix.dat}] The excitonic Hamiltonian (all values in cm$^{-1}$)
 \item[\texttt{diag.dat}] Excitonic states, energies and coefficients. The second part of the file contains the squared coefficients
 \item[\texttt{results.out}] Excitonic states, squared excitonic dipoles, LD intensity, and rotatory strengths. This file is the input to \texttt{spectrum.py}
+\item[\texttt{exat.npz}] A \texttt{numpy} file containing all the data extracted/calculated by \texttt{EXAT} and defining the exciton system. This file can be loaded again with the \texttt{--load} option.
 \end{description}
 
 \paragraph*{Other default output files}
@@ -304,6 +306,40 @@ The other columns specify that:
 %\item \dots
 \end{itemize}
 
+\subsection{Use in python scripts}
+
+The newer versions of \texttt{EXAT} have some API functionalities that allow manipulating exciton systems within python. To do so, place at the beginning of your script the following lines:
+\begin{framed}
+\begin{quote}
+\begin{verbatim}
+import numpy as np
+import sys
+sys.path.append('/path/to/your/exat-g16/src/')
+from excsystem import ExcSystem, load_npz, ChromTranList
+\end{verbatim}
+\end{quote}
+\end{framed}
+
+You can now load the \texttt{exat.npz} file as
+\begin{framed}
+\begin{quote}
+\begin{verbatim}
+exciton_system = load_npz('my.exat.npz')
+\end{verbatim}
+\end{quote}
+\end{framed}
+
+The exciton Hamiltonian matrix, dipoles, Site energies, etc. will be accessible from the object. They can be also modified. For example,
+\begin{framed}
+\begin{quote}
+\begin{verbatim}
+print(exciton_system.Site)
+exciton_system.H[0,0] += 100 
+print(exciton_system.Site)
+exciton_system.save('modified.exat.npz')
+\end{verbatim}
+\end{quote}
+\end{framed}
 
 \section{Citation}
 
@@ -312,10 +348,7 @@ Please cite this tool as:
 S. Jurinovich, L. Cupellini, C.A. Guido, and B. Mennucci,  ``EXAT - EXcitonic Analysis Tool'', \emph{J. Comput. Chem.} 2018, \textbf{39}, 279--286,   (doi: 10.1002/jcc.25118)
 
 
-Please also cite the following papers when presenting results obtained with EXAT:
-
-
-S. Jurinovich, G. Pescitelli, L. Di Bari, B. Mennucci, \emph{Phys. Chem. Chem. Phys.}, 2014, \textbf{16}, 16407--16418 (doi: 10.1039/c3cp55428g)
+Please also cite the following paper when using the full magnetic treatment:
 
 S. Jurinovich, C. A. Guido, T. Bruhn, G. Pescitelli, B. Mennucci,  \emph{Chem. Commun.}, 2015, \textbf{51}, 10498--10501 (doi: 10.1039/C5CC03167B)
 
