@@ -37,6 +37,7 @@
 #   <http://www.gnu.org/licenses/>.
 #
 
+from __future__ import print_function
 import os,sys
 import readdata, math, util
 import numpy    as np
@@ -52,12 +53,12 @@ def RotStrength(EEN,Cent,coeff,DipoLen,EXCDipoLen,DipoVel,MagInt,RxDel,Site):
 
   if c.OPT['RCalc'] == "mu":
     if c.v():
-      print " ... using approximate treatment (electric dipoles only)" 
+      print(" ... using approximate treatment (electric dipoles only)") 
     EXCRot = Rapprox(EEN*c.PhyCon['Town'],coeff,DipoLen,Cent)
 
   elif c.OPT['RCalc'] in ("mag","velocity"):
     if c.v():
-      print " ... Using full treatment (electric and magnetic dipoles)\n" 
+      print(" ... Using full treatment (electric and magnetic dipoles)\n") 
 
     # Compute some excitonic properties
     EXCDipoVel = EXCalc(coeff,DipoVel) 
@@ -69,7 +70,7 @@ def RotStrength(EEN,Cent,coeff,DipoLen,EXCDipoLen,DipoVel,MagInt,RxDel,Site):
     EXCMagTot  = EXCMagInt+EXCMagExt 
   
     if c.v(0):
-      print "     Splitting mu-mu and mu-mag contributions" 
+      print("     Splitting mu-mu and mu-mag contributions") 
  
     if c.OPT['RCalc'] == "mag":  
       # Compute extrinsic R Strength (mu-mu) 
@@ -88,23 +89,23 @@ def RotStrength(EEN,Cent,coeff,DipoLen,EXCDipoLen,DipoVel,MagInt,RxDel,Site):
       np.savetxt(c.OutFiles['rstrength'],Out,fmt="%10.4f")
     
       if c.v(0):
-        print " "*5+"-"*58 
-        print "  "+(4*"%15s") % ("Mu (Approx)","R Int","R Ext","RTot")
-        print " "*5+"-"*58 
+        print(" "*5+"-"*58) 
+        print("  "+(4*"%15s") % ("Mu (Approx)","R Int","R Ext","RTot"))
+        print(" "*5+"-"*58) 
         for i in range(len(EXCRot)):
-          print "  "+" %14.2f"*4 % (EXCRotMu[i],RInt[i],RExt[i],EXCRot[i])
-        print
+          print("  "+" %14.2f"*4 % (EXCRotMu[i],RInt[i],RExt[i],EXCRot[i]))
+        print()
   
   elif c.OPT['RCalc'] == "length":
     if c.v():
-      print " ... using full treatment in Length formulation"
+      print(" ... using full treatment in Length formulation")
     # Extrinsic part
     EXCRot = Rapprox(EEN*c.PhyCon['Town'],coeff,DipoLen,Cent)
     # Add Intrinsic part
     EXCRot += RLenIso(EXCDipoLen,-EXCMagInt)[0]
 
   elif c.OPT['RCalc'] == "newlen":
-    print " ... PROVA!"
+    print(" ... PROVA!")
     EXCMagInt  = EXCalc(coeff,MagInt)
     EXCMagExt  = EXCalc(coeff,RxDel)
     EXCMagTot  = EXCMagInt+EXCMagExt 
@@ -116,7 +117,7 @@ def RotStrength(EEN,Cent,coeff,DipoLen,EXCDipoLen,DipoVel,MagInt,RxDel,Site):
     EXCRot     = RLenIso(EXCDipoV1,EXCMagTot)[0]
 
   if c.v(1): 
-    print ' '*5+'Sum of rotatory strengths: %10.2f\n' % (EXCRot.sum())
+    print(' '*5+'Sum of rotatory strengths: %10.2f\n' % (EXCRot.sum()))
   return EXCRot  
 
 # Compute Linear Dichroism
@@ -130,8 +131,8 @@ def LinDichro(Dipo):
     Axis = np.array(c.OPT['LDAxis'],dtype=float)
     c.OPT['LDAxis'] = "[%4.1f,%4.1f,%4.1f]" % tuple(Axis)
   if c.v():
-    print "   ... LD Spectrum computed with respect to the %s axis"\
-          % c.OPT['LDAxis']
+    print("   ... LD Spectrum computed with respect to the %s axis"\
+          % c.OPT['LDAxis'])
 
   LD = []
   
@@ -200,8 +201,8 @@ def Rapprox(energy,coeff,dipo,cent):
   tprod = calc_tprod(dipo,cent)
   if c.OPT['savetprod']:
     if c.v(0):
-      print ' ... save triple product matrix in %s'\
-        % (c.OutFiles['tprod'])
+      print(' ... save triple product matrix in %s'\
+        % (c.OutFiles['tprod']))
     np.savetxt(c.OutFiles['tprod'],tprod,fmt='%10.5f')
 
   #R_k = coeff_k * tprod * coeff_k.T

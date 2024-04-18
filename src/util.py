@@ -36,6 +36,7 @@
 #   <http://www.gnu.org/licenses/>.
 #
 #
+from __future__ import print_function
 import os,sys,glob
 import numpy  as np
 from scipy.spatial import distance
@@ -289,8 +290,8 @@ def calchromcent(NAtom,anum,xyz,NTran):
     ISel  = c.stringconverter(c.OPT['Cent'][0])
     ISel  = (np.array(ISel)-1).tolist()
     if c.v():
-      print " The following atoms will be selected to compute chromophore center: "
-      print ISel
+      print(" The following atoms will be selected to compute chromophore center: ")
+      print(ISel)
 
   for i in range(len(NAtom)):
     End  = Init + NAtom[i]
@@ -343,8 +344,8 @@ def reorientdipo(system):
 
       if sign < 0 : 
         if c.v():
-          print "Chrom: %3d  Trans: %3d  Transition electric dipole moment will be reoriented"\
-             % (I+1,J+1)
+          print("Chrom: %3d  Trans: %3d  Transition electric dipole moment will be reoriented"\
+             % (I+1,J+1))
         exc.DipoLen[K] *= -1 
         # Change signs to DipoVel and Mag as well
         exc.DipoVel[K] *= -1 
@@ -378,9 +379,9 @@ def buildrefframe(A,B,C):
   ACprojx = np.dot(AC,ux) # projection on ux
   # check quasi-linear dependence
   if abs(ACprojx/np.linalg.norm(AC)) > np.cos(np.radians(10.0)) and c.v():
-    print " WARNING: choosen atoms are almost aligned!"
-    print " Angle between vectors: %8.2f degrees; threshold: %8.2f degrees" \
-    % (np.degrees(np.arccos(ACprojx/np.linalg.norm(AC))),10)  
+    print(" WARNING: choosen atoms are almost aligned!")
+    print(" Angle between vectors: %8.2f degrees; threshold: %8.2f degrees" \
+    % (np.degrees(np.arccos(ACprojx/np.linalg.norm(AC))),10))  
   # subtract the projection on x and normalize
   AC -= ACprojx*ux
   uy  = AC/np.linalg.norm(AC)
@@ -400,7 +401,7 @@ def diporient(ChromFrame,crlist,DipoLen,Theta,Phi,RefTheta,RefPhi,ForceDipo):
   # ChromFrame: list of molecular ref. frames, one per chromophore
   
   if c.v(): 
-    print " ... Dipoles of the following transitions will be oriented: "
+    print(" ... Dipoles of the following transitions will be oriented: ")
 
   # Mask reference with ForceDipo
   mask = np.logical_not(ForceDipo)
@@ -426,8 +427,8 @@ def diporient(ChromFrame,crlist,DipoLen,Theta,Phi,RefTheta,RefPhi,ForceDipo):
       DipoLen[k] = ref*MDipo # Force orientation
   
       if c.v():
-        print " Chrom %7s  Tran %3d   theta = %10.4f  phi = %10.4f   Dipole = %8.4f %8.4f %8.4f" \
-        % (Chrom,j+1,RefTheta[k],RefPhi[k],DipoLen[k,0],DipoLen[k,1],DipoLen[k,2])
+        print(" Chrom %7s  Tran %3d   theta = %10.4f  phi = %10.4f   Dipole = %8.4f %8.4f %8.4f" \
+        % (Chrom,j+1,RefTheta[k],RefPhi[k],DipoLen[k,0],DipoLen[k,1],DipoLen[k,2]))
 
   return DipoLen
  
@@ -437,15 +438,15 @@ def dipoanalysis(system,nochange=False):
   NChrom = exc.NChrom
     
   if c.v():
-    print "\n ==== Transition Dipole Analysis Function ==== \n"
-    print " Computing angle between transition dipole moments and a given reference frame"
-    print " The reference frame is defined from the positions of three (groups of) atoms "
-    print " Note that the sign of the angle is related to the third (group of) atoms" 
-    print 
+    print("\n ==== Transition Dipole Analysis Function ==== \n")
+    print(" Computing angle between transition dipole moments and a given reference frame")
+    print(" The reference frame is defined from the positions of three (groups of) atoms ")
+    print(" Note that the sign of the angle is related to the third (group of) atoms") 
+    print() 
 
   c.checkfile(c.ExtFiles['refaxis'])  
   if c.v():
-    print " > Reference file: %s \n" % c.ExtFiles['refaxis']
+    print(" > Reference file: %s \n" % c.ExtFiles['refaxis'])
 
   # Read reference file
   with open(c.ExtFiles['refaxis'],'r') as f:
@@ -537,8 +538,8 @@ def dipoanalysis(system,nochange=False):
       
       if sign < 0 and not nochange: 
         if c.v():
-          print " Chrom: %3d  Trans: %3d  Transition sign will be changed "\
-             % (i+1,j+1)
+          print(" Chrom: %3d  Trans: %3d  Transition sign will be changed "\
+             % (i+1,j+1))
         exc.DipoLen[k] *= -1 
         # Change signs to DipoVel and Mag as well
         exc.DipoVel[k] *= -1 
@@ -562,18 +563,18 @@ def dipoanalysis(system,nochange=False):
 
   # Print out the results of the dipo analysis
   if c.v():
-    print 
+    print() 
     k = 0
     for i in range(NChrom):
       for j in range(exc.NTran[i]): 
-        print " Chrom %7s  Tran %3d   theta = %10.4f  phi = %10.4f"\
-          % (exc.ChromList.Chrom[i],j+1,Theta[k],Phi[k])
+        print(" Chrom %7s  Tran %3d   theta = %10.4f  phi = %10.4f"\
+          % (exc.ChromList.Chrom[i],j+1,Theta[k],Phi[k]))
         if c.v(0): 
-          print "   Dipole: " + "  %10.4f  %10.4f  %10.4f " % tuple(exc.DipoLen[k])
+          print("   Dipole: " + "  %10.4f  %10.4f  %10.4f " % tuple(exc.DipoLen[k]))
         k += 1   
 
   
-  if c.v(): print 
+  if c.v(): print() 
 
 
   if ForceDipo.any(): 
@@ -582,11 +583,11 @@ def dipoanalysis(system,nochange=False):
     exc.DipoLen = diporient(ChromFrame,exc.ChromList,exc.DipoLen,
             Theta,Phi,RefTheta,RefPhi,ForceDipo)
   elif c.v():
-    print " ... Dipoles will not be changed"
+    print(" ... Dipoles will not be changed")
 
   # End
   if c.v():
-    print "\n ====  End of Transition Dipole Analysis  ==== \n"
+    print("\n ====  End of Transition Dipole Analysis  ==== \n")
 
   exc.H[exc.H == 0.0] = 0.0  
   return exc,(np.array(Theta),np.array(Phi))
@@ -606,8 +607,8 @@ def scaletran(system):
   reffile = c.ExtFiles['ScaleTran']
   c.checkfile(reffile)  
   if c.v():
-    print 
-    print " ... scaling transition densities using scaling factors from file: %s" % reffile 
+    print() 
+    print(" ... scaling transition densities using scaling factors from file: %s" % reffile) 
 
   # Read reference file
   with open(reffile,'r') as f:
@@ -635,8 +636,8 @@ def scaletran(system):
       c.error('Scale factor not understood: %s' % data[2])
     if fact != 1.0:
       if c.v():
-        print "     Chrom: %10s   Tran: %3d  scale transition density by %10.6f" \
-               % (chrom,itran,fact)
+        print("     Chrom: %10s   Tran: %3d  scale transition density by %10.6f" \
+               % (chrom,itran,fact))
         exc.DipoLen[k] *= fact
         exc.DipoVel[k] *= fact
         exc.Mag[k]     *= fact
@@ -693,13 +694,13 @@ def modsite(system):
       if Ene is not None:
         if shift == False:
           if c.v():
-            print "     Chrom: %10s   Tran: %3d  site energy set to %8.5f eV"\
-                  % (chrom,itran,Ene)
+            print("     Chrom: %10s   Tran: %3d  site energy set to %8.5f eV"\
+                  % (chrom,itran,Ene))
           exc.H[k,k] = Ene*c.PhyCon['eV2wn']
         elif shift == True:
           if c.v():
-            print "     Chrom: %10s   Tran: %3d  site energy sfhit of %8.5f eV"\
-                  % (chrom,itran,Ene)
+            print("     Chrom: %10s   Tran: %3d  site energy sfhit of %8.5f eV"\
+                  % (chrom,itran,Ene))
           exc.H[k,k] += Ene*c.PhyCon['eV2wn']
  
   exc.update_sitecoup()
@@ -718,7 +719,7 @@ def moddipo(Dipo,name):
   reffile = c.ExtFiles[name]
   c.checkfile(reffile)
   if c.v():
-    print " Dipoles (Debye) will be read from %s" % (reffile)
+    print(" Dipoles (Debye) will be read from %s" % (reffile))
 
   fmt = " Chrom: %5s Tran: %3d  Orig dipo = %8.4f %8.4f %8.4f    New dipo = %8.4f %8.4f %8.4f"
 
@@ -743,7 +744,7 @@ def moddipo(Dipo,name):
     if name == 'dipo': newdip /= c.PhyCon['ToDeb']
 
     if c.v():
-      print fmt % (chrom,k+1,Dipo[k][0],Dipo[k][1],Dipo[k][2],newdip[0],newdip[1],newdip[2])
+      print(fmt % (chrom,k+1,Dipo[k][0],Dipo[k][1],Dipo[k][2],newdip[0],newdip[1],newdip[2]))
     Dipo[k] = newdip
         
   return Dipo
@@ -760,7 +761,7 @@ def modcent(Cent):
   reffile = c.ExtFiles['incent']
   c.checkfile(reffile)
   if c.v():
-    print " Centers will be read from %s" % (reffile)
+    print(" Centers will be read from %s" % (reffile))
 
   fmt = "   Chrom: %5s Tran: %3d -- center moved by %12.4f Ang"
 
@@ -783,13 +784,13 @@ def modcent(Cent):
       NewCent = np.array(data[2:5],dtype=float)
       trlist  = [itran-1]
     else: 
-      trlist = range(c.NTran[c.ChromList.index(chrom)])
+      trlist = list(range(c.NTran[c.ChromList.index(chrom)]))
       NewCent = np.array(data[1:4],dtype=float)
 
     for j in trlist:
       k = c.TrIdx(chrom,j) 
       if c.v():
-        print fmt % (chrom,j+1,np.linalg.norm((NewCent-Cent[k])))
+        print(fmt % (chrom,j+1,np.linalg.norm((NewCent-Cent[k]))))
       Cent[k] = NewCent
 
   return Cent
@@ -808,7 +809,7 @@ def modcoup(system):
   reffile = c.ExtFiles['modcoup']
   c.checkfile(reffile)
   if c.v():
-    print " ... Read coupling changes in file %s " % reffile
+    print(" ... Read coupling changes in file %s " % reffile)
 
   with open(reffile) as f:
     while True:
@@ -827,8 +828,8 @@ def modcoup(system):
       if ii == jj:
         c.error("Trying to change a site energy in modcoup")
       if c.v():
-        print "     Coupling Chrom %5s (%3d) -- %5s (%3d) set to %10.2f cm^-1"\
-              % (iChrom,iTran,jChrom,jTran,newcoup)
+        print("     Coupling Chrom %5s (%3d) -- %5s (%3d) set to %10.2f cm^-1"\
+              % (iChrom,iTran,jChrom,jTran,newcoup))
       exc.H[ii,jj] = newcoup
       exc.H[jj,ii] = newcoup
       
@@ -850,7 +851,7 @@ def anu2awg(In):
 
 # Save the complete geometry in xyz file
 def savegeom(anum,xyz):
-  if c.v(1): print " ... save geometry to file %s " %  c.OutFiles['xyz'] 
+  if c.v(1): print(" ... save geometry to file %s " %  c.OutFiles['xyz']) 
   NAtoms = len(anum)
   OutF = open(c.OutFiles['xyz'],'w')
   OutF.write("%d\n" %  NAtoms)
@@ -874,9 +875,9 @@ def savevisudipo(system,ExcDipo,MagDipo=None):
   NTran  = ChromList.NTran
 
   if c.v(1): 
-    print " ... save dipole visualization script to %s " %  c.OutFiles['visudipo'] 
-    print "     Edit the file following the instructions therein, then type "
-    print "     vmd -e %s " % c.OutFiles['visudipo']
+    print(" ... save dipole visualization script to %s " %  c.OutFiles['visudipo']) 
+    print("     Edit the file following the instructions therein, then type ")
+    print("     vmd -e %s " % c.OutFiles['visudipo'])
 
   OutFN = c.OutFiles['visudipo']
   with  open(OutFN,'w') as OutF:
@@ -1003,8 +1004,8 @@ def resout(energy,dip,LD,R):
       out.write('%3d %10.4f %10.4f %10.4f %10.4f \n'\
        % (i+1,EeV[i],dip[i],LD[i],R[i]))
     if c.v():
-      print "   ... file %s containing the excitonic results has been saved!\n"\
-       % outfile
+      print("   ... file %s containing the excitonic results has been saved!\n"\
+       % outfile)
   pass
 
 # ***********************************************
@@ -1085,9 +1086,9 @@ def prtcoup(system):
   Dist   = distance.cdist(Cent,Cent, 'euclidean')
   thresh = c.OPT['CouPrtThr']
   if thresh is False: return
-  print "\n Couplings larger than %7.2f cm^-1: " % thresh
-  print " Chrom Chrom  Tran  Tran   V (cm-1)  Dist (Ang)        Kappa"
-  print " -------------------------------------------------------------"
+  print("\n Couplings larger than %7.2f cm^-1: " % thresh)
+  print(" Chrom Chrom  Tran  Tran   V (cm-1)  Dist (Ang)        Kappa")
+  print(" -------------------------------------------------------------")
 
   OutCoupFile = open(c.OutFiles['coup'],'w')
 
@@ -1116,8 +1117,8 @@ def prtcoup(system):
           if kk >= ll: continue
           if abs(M[kk,ll]) > thresh:
             # Print on screen
-            print "%6s %6s  %3d %3d   %10.4f   %10.4f   %10.4f" \
-            % (Chrom[i],Chrom[j],k+1,l+1,M[kk,ll],Dist[kk,ll],MKappa[kk,ll])
+            print("%6s %6s  %3d %3d   %10.4f   %10.4f   %10.4f" \
+            % (Chrom[i],Chrom[j],k+1,l+1,M[kk,ll],Dist[kk,ll],MKappa[kk,ll]))
           # Save all on output file
           OutCoupFile.write("%6s %6s  %3d %3d   %10.4f   %10.4f   %10.4f \n" \
           % (Chrom[i],Chrom[j],k+1,l+1,M[kk,ll],Dist[kk,ll],MKappa[kk,ll]))

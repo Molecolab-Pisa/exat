@@ -37,6 +37,7 @@
 #
 #
 
+from __future__ import print_function
 import numpy  as np
 from collections import OrderedDict
 
@@ -49,7 +50,7 @@ class ChromTranList(OrderedDict):
     def __init__(self,*args,**kwargs):
         
         super(ChromTranList, self).__init__(*args)
-        for k,v in self.iteritems():
+        for k,v in self.items():
             try: 
                 iter(v)
                 # Copy
@@ -57,7 +58,7 @@ class ChromTranList(OrderedDict):
             except:
                 self[k] = [v]
 
-        for k,v in self.iteritems():
+        for k,v in list(self.items()):
             if not str(k) == k:
                 self[str(k)] = v
                 del self[k]
@@ -81,7 +82,7 @@ class ChromTranList(OrderedDict):
                 ITran = [1]
             Tran.append(ITran)
         
-        return cls(zip(ChromList,Tran))
+        return cls(list(zip(ChromList,Tran)))
         
     def set_NTran(self,NTran):
        "Sets the transitions for every chromophore" 
@@ -96,7 +97,7 @@ class ChromTranList(OrderedDict):
         if not str(chrom) == chrom:
             chrom = str(chrom)
 
-        if not chrom in self.keys():
+        if not chrom in list(self.keys()):
             return None
         ichrom = self.index(chrom)
         if itran > self.NTran[ichrom]:
@@ -127,24 +128,24 @@ class ChromTranList(OrderedDict):
     
     @property
     def NTran(self):
-        return [len(v) for v in self.values() ]
+        return [len(v) for v in list(self.values()) ]
     
     @property
     def Chrom(self):
         "Returns list with chromophore names/IDs"
-        return self.keys()
+        return list(self.keys())
         
     def index(self,x):
         "Returns index of chromophore given name"
         y = str(x)
-        return self.keys().index(y)
+        return list(self.keys()).index(y)
 
     def append(self,chrom):
         "Adds a new chromophore w. zero transitions"
  
         ch = str(chrom)
         if ch in self.keys():
-            raise ValueError, 'Chromophore %s already in ChromList!' % (ch)
+            raise ValueError( 'Chromophore %s already in ChromList!' % (ch))
 
         self[ch] = []
 
@@ -163,18 +164,18 @@ class ChromTranList(OrderedDict):
     def copy(self):
         "Return deep copy of the object"
         cls = type(self)
-        return cls(self.iteritems())
+        return cls(self.items())
 
     def __repr__(self):
         cname  = 'excsystem.'+self.__class__.__name__
-        params = repr(list(self.iteritems()))
+        params = repr(list(self.items()))
          
         return '%s(%s)' % (cname,params)
 
     def __str__(self):
         s  = ' ChromList: \n'
         s += ' Chrom     Tran\n'
-        for k,v in self.iteritems():
+        for k,v in self.items():
             s += ' %5s     ' % (k) 
             s +=  ' '.join('%4d' % (i) for i in v )
             s += '\n'
@@ -305,7 +306,7 @@ class ExcSystem(object):
         for ich in ichrom:
           id1 = sum(self.NAtom[:ich])
           id2 = id1 + self.NAtom[ich]
-          idx.extend(range(id1,id2))
+          idx.extend(list(range(id1,id2)))
 
         return self.anum[idx],self.xyz[idx]
 
@@ -335,14 +336,14 @@ class ExcSystem(object):
         lcoup = len(self.coup)
       
         if lcoup != ncoup :
-          print "Couplings Found     : %4d" % lcoup  
-          print "Couplings Requested : %4d" % ncoup  
+          print("Couplings Found     : %4d" % lcoup)  
+          print("Couplings Requested : %4d" % ncoup)  
           c.error("Confused in the Dimension!","matrixbuilder")
       
         if c.v(1):
-          print  " ... Matrix dimension       : %4d" % dimen 
-          print  " ... Number of chromophores : %4d" % self.NChrom 
-          print  " ... Number of COUPLINGS    : %4d" % ncoup 
+          print(" ... Matrix dimension       : %4d" % dimen) 
+          print(" ... Number of chromophores : %4d" % self.NChrom) 
+          print(" ... Number of COUPLINGS    : %4d" % ncoup) 
       
       
         # Set all matrix elements to zero:

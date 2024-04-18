@@ -11,9 +11,10 @@
     <property name="program_name">EXAT - EXcitonic Analysis tool</property>
     <property name="copyright" translatable="yes">Copyright © Lorenzo Cupellini, Sandro Jurinovich, Benedetta Mennucci</property>
     <property name="comments" translatable="yes"> Excitonic Analysis Tool</property>
-    <property name="website">https://molecolab.dcci.unipi.it/tools/</property>
-    <property name="authors">Sandro Jurinovich
-Lorenzo Cupellini
+    <property name="website">https://molecolab.dcci.unipi.it/software</property>
+    <property name="authors">
+	    Lorenzo Cupellini
+	    Sandro Jurinovich
 Benedetta Mennucci</property>
     <property name="logo">../doc/logo.png</property>
     <child internal-child="vbox">
@@ -239,7 +240,6 @@ Benedetta Mennucci</property>
     <property name="border_width">5</property>
     <property name="title" translatable="yes">Analyze Transition Dipoles</property>
     <property name="type_hint">dialog</property>
-    <property name="has_separator">True</property>
     <child internal-child="vbox">
       <object class="GtkVBox" id="dialog-vbox4">
         <property name="visible">True</property>
@@ -313,7 +313,6 @@ Benedetta Mennucci</property>
     <property name="title" translatable="yes">Select Transitions</property>
     <property name="destroy_with_parent">True</property>
     <property name="type_hint">dialog</property>
-    <property name="has_separator">True</property>
     <child internal-child="vbox">
       <object class="GtkVBox" id="dialog-vbox2">
         <property name="visible">True</property>
@@ -597,9 +596,6 @@ Benedetta Mennucci</property>
             <property name="visible">True</property>
             <property name="can_focus">True</property>
             <property name="scrollable">True</property>
-            <property name="tab_border">3</property>
-            <property name="tab_hborder">3</property>
-            <property name="tab_vborder">3</property>
             <signal name="switch-page" handler="on_notebook1_switch_page" swapped="no"/>
             <child>
               <object class="GtkScrolledWindow" id="scrolledwindow1">

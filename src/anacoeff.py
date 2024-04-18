@@ -36,6 +36,7 @@
 #   <http://www.gnu.org/licenses/>.
 #
 
+from __future__ import print_function,division
 import sys, os, glob
 import numpy as np
 import argparse as arg
@@ -89,18 +90,18 @@ def print_summary(ExcEne,Dip2,RotStr,Coeff2,Thresh,NTran):
   #  header = ['G(1)','G(2)','C(3)','A(4)','C(5)','U(6)','G(9)','G(10)','U(11)','G(12)','C(13)','C(14)']
   #print ( fmthdr % tuple(header))
 
-  print '\n'+230*('-')
-  print header
-  print 230*('-')
+  print('\n'+230*('-'))
+  print(header)
+  print(230*('-'))
 
   for i in range(NSt):
     fmt    = buildformat(NSt,Coeff2[i],Thresh,NTranChrom)
     OutRow = (i+1,ExcEne[i],Dip2[i],RotStr[i],IPR[i])+(tuple(Coeff2[i]))
-    print ( fmt % OutRow)
+    print(( fmt % OutRow))
 
-  print "Minimum IPR = %5.1f on ExcState %2d" % (np.min(IPR),np.argmin(IPR)+1)
-  print "Maximum IPR = %5.1f on ExcState %2d" % (np.max(IPR),np.argmax(IPR)+1)
-  print "Average IPR = %5.1f (sigma = %5.1f)" % (np.average(IPR),np.std(IPR))
+  print("Minimum IPR = %5.1f on ExcState %2d" % (np.min(IPR),np.argmin(IPR)+1))
+  print("Maximum IPR = %5.1f on ExcState %2d" % (np.max(IPR),np.argmax(IPR)+1))
+  print("Average IPR = %5.1f (sigma = %5.1f)" % (np.average(IPR),np.std(IPR)))
 
   pass
 
@@ -138,7 +139,7 @@ def read_coeff(InCoeffFile):
   # Read external file and store excitation energies and coefficients
   with open(InCoeffFile,'r') as f:
     while True:
-      Tmp = map(float,f.readline().split())
+      Tmp = list(map(float,f.readline().split()))
       try:
         ExcEne.append(Tmp[0])  # Excitonic energy in eV
         Coeff.append(Tmp[2:])

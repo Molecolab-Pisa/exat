@@ -42,6 +42,7 @@
 
 
 # Standard Python Modules
+from __future__ import print_function
 import sys,os,glob
 import numpy    as np
 import argparse as arg
@@ -78,9 +79,9 @@ def checkdipovel(dipolen,dipovel,site):
 
   deltaperc = delta/norm2*100
   
-  print
+  print()
   for i in range(s.NTran[0]):
-    print " Nabla %2d ----- delta = %6.2f%%  angle = %8.4f " % (i+1,deltaperc[i],angle[i])
+    print(" Nabla %2d ----- delta = %6.2f%%  angle = %8.4f " % (i+1,deltaperc[i],angle[i]))
   
   pass
 
@@ -152,7 +153,7 @@ if __name__ == "__main__" :
   # Compute the chromophore center
   Cent = u.calchromcent(NAtom,anum,xyz,[NTran])
   
-  s = ExcSystem([(1,range(1,NTran+1))],site=site,Cent=np.asarray(Cent),
+  s = ExcSystem([(1,list(range(1,NTran+1)))],site=site,Cent=np.asarray(Cent),
           DipoLen=dipo,DipoVel=dipovel,Mag=mag)
   s.add_geom(anum,xyz,NAtom)
   # Tweak for couplings
@@ -179,11 +180,11 @@ if __name__ == "__main__" :
   MagExt = MagTot-MagInt
 
 
-  print '\n'
-  print " Electric transition dipoles: "
+  print('\n')
+  print(" Electric transition dipoles: ")
   for i in range(s.NTran[0]):
     NormDip =  np.linalg.norm(dipo[i])
-    print " Trans %2d  %8.4f  mu  = %8.4f %8.4f %8.4f  ->  %8.4f " % (i+1,site[i],dipo[i][0],dipo[i][1],dipo[i][2],NormDip)
+    print(" Trans %2d  %8.4f  mu  = %8.4f %8.4f %8.4f  ->  %8.4f " % (i+1,site[i],dipo[i][0],dipo[i][1],dipo[i][2],NormDip))
 
   #c.OPT['verbosity'] = -1
   if c.OPT['anadipo'] is not None:
@@ -192,11 +193,11 @@ if __name__ == "__main__" :
   if velcheck:
     checkdipovel(dipo,dipovel,site)
 
-  print '\n'
-  print " Magnetic transition dipoles (intrinsic): "
+  print('\n')
+  print(" Magnetic transition dipoles (intrinsic): ")
   for i in range(s.NTran[0]):
     NormMagInt =  np.linalg.norm(MagInt[i])
-    print " Trans %2d  %8.4f  mag = %8.4f %8.4f %8.4f  ->  %8.4f " % (i+1,site[i],MagInt[i][0],MagInt[i][1],MagInt[i][2],NormMagInt)
+    print(" Trans %2d  %8.4f  mag = %8.4f %8.4f %8.4f  ->  %8.4f " % (i+1,site[i],MagInt[i][0],MagInt[i][1],MagInt[i][2],NormMagInt))
 
     # Dipole analysis with internal magnetic moment
   if c.OPT['anadipo'] is not None:

@@ -35,6 +35,7 @@
 #   <http://www.gnu.org/licenses/>.
 #
 
+from __future__ import print_function,division
 import sys,os
 import matplotlib.pyplot as plt
 import numpy    as np
@@ -69,7 +70,7 @@ def view(OPT,x,E,OD,LD,CD,mu2od,mu2ld,rotst):
 
   # Define X-Axis units
   if   OPT['UAxi'] == "nm" :
-    print " Spectrum will be shown in nm"
+    print(" Spectrum will be shown in nm")
     x = 1.0E7/x
     E = 1.0E7/E
     plt.xlim(1.0E7/OPT['XMax'],1.0E7/OPT['XMin'])
@@ -78,7 +79,7 @@ def view(OPT,x,E,OD,LD,CD,mu2od,mu2ld,rotst):
     IndEne = np.intersect1d(E1,E2)
 
   elif OPT['UAxi'] == "cm-1" :
-    print " Spectrum will be shown in cm-1"
+    print(" Spectrum will be shown in cm-1")
     plt.xlim(OPT['XMin'],OPT['XMax'])
     E1 = np.where(E>plt.xlim()[0])[0]
     E2 = np.where(E<plt.xlim()[1])[0]
@@ -86,7 +87,7 @@ def view(OPT,x,E,OD,LD,CD,mu2od,mu2ld,rotst):
 
   
   elif OPT['UAxi'] == "eV" :
-    print " Spectrum will be shown in eV"
+    print(" Spectrum will be shown in eV")
     x = x/c.PhyCon['eV2wn']
     E = E/c.PhyCon['eV2wn']
     plt.xlim(OPT['XMin']/c.PhyCon['eV2wn'],OPT['XMax']/c.PhyCon['eV2wn'])

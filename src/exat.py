@@ -38,6 +38,7 @@
 #
 
 # Import python modules
+from __future__ import print_function
 import sys, os, glob 
 import numpy as np
 
@@ -64,7 +65,7 @@ u.GetOpts()
 #     by the user or extract data from different Gaussian versions
 #
 
-print "\n (1) Read data" 
+print("\n (1) Read data") 
 
 # System-independent call (including seltran)
 system,Sel = readdata.Read()
@@ -74,24 +75,24 @@ system,Sel = readdata.Read()
 #
 # 2. Build the Excitonic Matrix
 #
-print "\n (2) Build the excitonic Hamiltonian" 
+print("\n (2) Build the excitonic Hamiltonian") 
 
 if c.OPT['ScaleCoup'] != 1.0:
   if c.v():
-    print "   ... applying coupling scaling factor"+ \
-  " of %4.1f" % c.OPT['ScaleCoup']
+    print("   ... applying coupling scaling factor"+ \
+  " of %4.1f" % c.OPT['ScaleCoup'])
   system.coup *= c.OPT['ScaleCoup']
 
 if c.OPT['CleanCoup'] > 0.0:
   thr = c.OPT['CleanCoup']
   if c.v():
-    print "   ... applying treshold of %4.1f" % thr
+    print("   ... applying treshold of %4.1f" % thr)
   system.coup[abs(system.coup) < thr] = 0.0
 
 # If requested, scale dipole (Length)
 if  c.OPT['ScaleDipo'] != 1.0 : 
-  print " ... All transition dipoles (length) will be scaled by factor %8.4f"\
-     % c.OPT['ScaleDipo']
+  print(" ... All transition dipoles (length) will be scaled by factor %8.4f"\
+     % c.OPT['ScaleDipo'])
   system.DipoLen  *= c.OPT['ScaleDipo']  # Scale transition dipole moments 
 
 system.buildmatrix()
@@ -108,9 +109,9 @@ if ( c.OPT['reorient'] is not None ) :
   if c.OPT['read'] == 'external': 
     c.error(' Reorient Dipoles is not possible with read external')
   else:
-    print " ... The direction of transition dipole moments will be changed according to selected axis"
+    print(" ... The direction of transition dipole moments will be changed according to selected axis")
     if c.OPT['forcedipo'] == True : 
-      print " ... The orientation of transition dipole moments will forced parallel to selected axis"
+      print(" ... The orientation of transition dipole moments will forced parallel to selected axis")
     # Reorient DipoLen and DipoVel, on the basis of DipoLen (!!)
     system = u.reorientdipo(system)
 
@@ -152,7 +153,7 @@ if c.OPT['verbosity'] > 1 : u.prtsite(system)
 # 3. Diagonalize the Excitonic Hamiltonian
 #
 
-print "\n (3) Diagonalize the excitonic Hamiltonian" 
+print("\n (3) Diagonalize the excitonic Hamiltonian") 
 system.diagonalize()
 u.savediag(system.energy,system.coeff,system.coef2)
 
@@ -169,20 +170,20 @@ RxDel  = np.cross(system.Cent/c.PhyCon['ToAng'],system.DipoVel)
 # Compute internal magnetic moment (DipoMag is gauge-dependent)
 MagInt = system.Mag - RxDel
 
-print "\n (4) Compute the excitonic properties" 
+print("\n (4) Compute the excitonic properties") 
 
 EXCDipoLen = trans.EXCalc(system.coeff,system.DipoLen)
 
 # Compute Linear Absorption Spectrum
-print "\n ... Compute the Linear Absorption Intensities" 
+print("\n ... Compute the Linear Absorption Intensities") 
 EXCDipo2   = np.sum(EXCDipoLen**2,axis=1)
 
 # Compute Linear Dichroism Spectrum
-print "\n ... Compute the Linear Dichroism Intensities" 
+print("\n ... Compute the Linear Dichroism Intensities") 
 LD = trans.LinDichro(EXCDipoLen)
 
 # Compute Rotational Strength ...
-print "\n ... Compute the Circular Dichroism Intensities" 
+print("\n ... Compute the Circular Dichroism Intensities") 
 EXCRot = trans.RotStrength(EEN,system.Cent,system.coeff,system.DipoLen,
                              EXCDipoLen,
                              system.DipoVel,MagInt,RxDel,system.Site)

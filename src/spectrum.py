@@ -36,6 +36,7 @@
 #   <http://www.gnu.org/licenses/>.
 #
 
+from __future__ import print_function
 import sys,os
 import argparse as arg
 import math     as m
@@ -119,10 +120,10 @@ def findpeaks(typespec,x,y,broad):
  peakind = np.sort(peakind)
 
  NPeaks = len(peakind)
- print "\n Found %2d peaks in %s spectrum%s" % (NPeaks,typespec,":"*np.sign(NPeaks))
+ print("\n Found %2d peaks in %s spectrum%s" % (NPeaks,typespec,":"*np.sign(NPeaks)))
  for i in range(NPeaks):
    Ind = peakind[i]
-   print " > %2d  X =   %8.0f cm-1    %6.1f nm   %8.4f eV   Y= % 8.4E" % (i+1,x[Ind],1.0E7/x[Ind],x[Ind]/c.PhyCon['eV2wn'],y[Ind])
+   print(" > %2d  X =   %8.0f cm-1    %6.1f nm   %8.4f eV   Y= % 8.4E" % (i+1,x[Ind],1.0E7/x[Ind],x[Ind]/c.PhyCon['eV2wn'],y[Ind]))
 
  return
 
@@ -147,13 +148,13 @@ def autowindow(EMin,EMax,broad=None):
 def printlimits():
   if OPT['UAxi'] == "nm"     : 
     print(" Spectrum Limits: <-------------- lambda (nm) -----------") 
-    print("                    %4.0f                           %4.0f" % (1.E7/OPT['XMax'],1.E7/OPT['XMin']) ) 
+    print(("                    %4.0f                           %4.0f" % (1.E7/OPT['XMax'],1.E7/OPT['XMin']) )) 
   elif OPT['UAxi'] == "cm-1" : 
     print(" Spectrum Limits: ----------- wavenumber (cm-1) -------->") 
-    print("                  %8.0f                       %8.0f"       % (OPT['XMin'],OPT['XMax']) )
+    print(("                  %8.0f                       %8.0f"       % (OPT['XMin'],OPT['XMax']) ))
   elif OPT['UAxi'] == "eV" : 
     print(" Spectrum Limits: ---------------- E (eV) -------------->") 
-    print("                  %8.4f                       %8.4f"       % (OPT['XMin']/c.PhyCon['eV2wn'],OPT['XMax']/c.PhyCon['eV2wn']) )
+    print(("                  %8.4f                       %8.4f"       % (OPT['XMin']/c.PhyCon['eV2wn'],OPT['XMax']/c.PhyCon['eV2wn']) ))
 
 
 
@@ -306,7 +307,7 @@ if __name__ == "__main__":
 
 
   # Print Initial Information
-  print(" XAxis will be saved in %s" % OPT['UAxi'])
+  print((" XAxis will be saved in %s" % OPT['UAxi']))
 
   # Print user-defined limits and chec and check
   if not autorange: 
@@ -365,34 +366,34 @@ if __name__ == "__main__":
   # Number of points
   OPT['NPts'] = np.round((OPT['XMax']-OPT['XMin'])/OPT['XStp'])
   
-  print 
-  print " E min  : %8.0f cm-1" % OPT['XMin']
-  print " E max  : %8.0f cm-1" % OPT['XMax']
-  print " Step   : %8.0f cm-1" % OPT['XStp']
-  print " NPts   : %8d       " % OPT['NPts']
-  print(" Prefix Output files %s " % OPT['FOut'])
-  print
+  print() 
+  print(" E min  : %8.0f cm-1" % OPT['XMin'])
+  print(" E max  : %8.0f cm-1" % OPT['XMax'])
+  print(" Step   : %8.0f cm-1" % OPT['XStp'])
+  print(" NPts   : %8d       " % OPT['NPts'])
+  print((" Prefix Output files %s " % OPT['FOut']))
+  print()
 
-  print " Number of electronic transitions : %3d" % NTran
+  print(" Number of electronic transitions : %3d" % NTran)
 
 
   if ETrMax > OPT['XMax'] or ETrMin < OPT['XMin'] :
-    print " WARNING! The selected spectrum range is too small to plot all transtions!"
-    print " WARNING! --min < %8.0f" % ETrMin
-    print " WARNING! --max > %8.0f" % ETrMax
+    print(" WARNING! The selected spectrum range is too small to plot all transtions!")
+    print(" WARNING! --min < %8.0f" % ETrMin)
+    print(" WARNING! --max > %8.0f" % ETrMax)
 
   # Line shape broadening
-  print " Lineshape function      : %s"  % OPT['LShp']
-  print " Broadening is given in  : %s"  % OPT['UBrd']
+  print(" Lineshape function      : %s"  % OPT['LShp'])
+  print(" Broadening is given in  : %s"  % OPT['UBrd'])
 
 
   # Shift energies
   if OPT['shift'] != None:
-    print " Excitation energies will be shifted by %8.4f eV (%10.2f cm^-1)" % (OPT['shift'],OPT['shift']*c.PhyCon['eV2wn'])
-    print energy
-    print OPT['shift']*c.PhyCon['eV2wn']
+    print(" Excitation energies will be shifted by %8.4f eV (%10.2f cm^-1)" % (OPT['shift'],OPT['shift']*c.PhyCon['eV2wn']))
+    print(energy)
+    print(OPT['shift']*c.PhyCon['eV2wn'])
     energy += OPT['shift']*c.PhyCon['eV2wn']
-    print energy
+    print(energy)
 
   # Call the function to write the spectrum into a file
   x,OD,LD,CD = specalc(NTran,energy,dipo,dipold,rotstr,broad)

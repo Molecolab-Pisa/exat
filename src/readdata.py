@@ -38,6 +38,7 @@
 #
 
 # Standard Python Modules
+from __future__ import print_function
 import sys,os,glob,fileinput,re,copy
 import subprocess as sp
 import numpy  as np
@@ -60,7 +61,7 @@ def Read():
   if c.OPT['seltran']:
     ChromList = ReadChromList()
     # Save selection
-    SelChromList = ChromTranList(ChromList.iteritems())
+    SelChromList = ChromTranList(iter(ChromList.items()))
   elif c.OPT['read'] not in ('g16','load'):
     ChromList = ReadChromList()
 
@@ -69,8 +70,8 @@ def Read():
 
   if c.OPT['read'] == 'g16':
     if c.v():
-      print  " ... excpected gaussian version: g16"
-      print  " ... reading in %s .log file" % c.OPT['logfile']
+      print(" ... excpected gaussian version: g16")
+      print(" ... reading in %s .log file" % c.OPT['logfile'])
     Site,Dipo,DipoVel,Mag,Coup,NTran,anum,xyz,NAtom = readgaulog36(c.OPT['logfile'])
     ChromList = ChromTranList( ((i+1),[]) for i in range(len(NTran)) )
     ChromList.set_NTran(NTran)
@@ -78,21 +79,21 @@ def Read():
   elif c.OPT['read'] == 'external':
   
     if c.v(): 
-      print " ... all parameters are read from external files" 
-      print " ... reading %s file to set the chromophore list" % c.ExtFiles['crlist'] 
+      print(" ... all parameters are read from external files") 
+      print(" ... reading %s file to set the chromophore list" % c.ExtFiles['crlist']) 
     Cent,Site,Dipo,DipoVel,Mag,Coup = ReadExternal(ChromList)
   
 
   if c.OPT['read'] != 'external':
     if c.v():
-      print " ... compute the center of each transtion" 
+      print(" ... compute the center of each transtion") 
     Cent = u.calchromcent(NAtom,anum,xyz,ChromList.NTran)
   
   # Compute dipole couplings
   if c.OPT['coup'] == 'PDA' :
     if c.v():
-      print " ... using dipole-dipole couplings based on electric transition dipole moments" 
-      print "     REFRACTION INDEX = %5.2f" % c.OPT['refrind'] 
+      print(" ... using dipole-dipole couplings based on electric transition dipole moments") 
+      print("     REFRACTION INDEX = %5.2f" % c.OPT['refrind']) 
     Coup,Kappa = u.coupforster(Cent,Dipo,ChromList.NChrom,ChromList.NTran)
     Kappa    = np.array(Kappa)
   else:
@@ -123,18 +124,18 @@ def ReadExternal(ChromList):
 
   # Read External files:
   if c.v():
-    print "     > CHROMLIST         : %s" % c.ExtFiles['crlist']
-    print "     > site energies     : %s" % c.ExtFiles['insite']
-    print "     > coupling          : %s" % c.ExtFiles['incoup']
-    print "     > elec. tr. dipoles : %s" % c.ExtFiles['dipo']
-    print "     > chrom centers     : %s" % c.ExtFiles['incent']
-    print "     > magn. tr. dipoles : %s" % c.ExtFiles['magdipo']
+    print("     > CHROMLIST         : %s" % c.ExtFiles['crlist'])
+    print("     > site energies     : %s" % c.ExtFiles['insite'])
+    print("     > coupling          : %s" % c.ExtFiles['incoup'])
+    print("     > elec. tr. dipoles : %s" % c.ExtFiles['dipo'])
+    print("     > chrom centers     : %s" % c.ExtFiles['incent'])
+    print("     > magn. tr. dipoles : %s" % c.ExtFiles['magdipo'])
 
   NChrom,NTran  =  ChromList.NChrom, ChromList.NTran
 
   if c.v():  
-    print " ... number of chromophores         : %3d" % NChrom 
-    print " ... N. transitions per chromophore : %s"  % NTran 
+    print(" ... number of chromophores         : %3d" % NChrom) 
+    print(" ... N. transitions per chromophore : %s"  % NTran) 
 
   # Read Site Energies
   Site = np.zeros(sum(NTran))
@@ -270,7 +271,7 @@ def readgaulog(logfile):
         if len(tempcen) != 6:
           atom = False
         else:
-          xyz.append(map(float,tempcen[3:6]))
+          xyz.append(list(map(float,tempcen[3:6])))
           anum.append(int(tempcen[1]))
           j = j + 1
 
@@ -283,7 +284,7 @@ def readgaulog(logfile):
         if len(tempdip) != 6 :
           atom = False
         else:
-          dipo.append(map(float,tempdip[1:4]))
+          dipo.append(list(map(float,tempdip[1:4])))
           j = j + 1
 
     # Extracts the dipole moments (velocity)
@@ -295,7 +296,7 @@ def readgaulog(logfile):
         if len(tempdip) != 6 :
           atom = False
         else:
-          dipovel.append(map(float,tempdip[1:4]))
+          dipovel.append(list(map(float,tempdip[1:4])))
           j = j + 1
 
     # Extracts the magnetic moment
@@ -307,7 +308,7 @@ def readgaulog(logfile):
         if len(tempdip) != 4 :
           atom = False
         else:
-          mag.append(map(float,tempdip[1:4]))
+          mag.append(list(map(float,tempdip[1:4])))
           j = j + 1
 
     # Extracts the site energy values
@@ -421,7 +422,7 @@ def readgaulog36(logfile):
           if len(tempcen) != 6:
             atom = False
           else:
-            xyz.append(map(float,tempcen[3:6]))
+            xyz.append(list(map(float,tempcen[3:6])))
             anum.append(int(tempcen[1]))
             j = j + 1
 
@@ -439,7 +440,7 @@ def readgaulog36(logfile):
             f.seek(pos) #go back one line
             break
           else:
-            dipo.append(map(float,tempdip[1:4]))
+            dipo.append(list(map(float,tempdip[1:4])))
             j = j + 1
 
       # Extracts the dipole moments (velocity)
@@ -455,7 +456,7 @@ def readgaulog36(logfile):
             f.seek(pos) #go back one line
             break
           else:
-            dipovel.append(map(float,tempdip[1:4]))
+            dipovel.append(list(map(float,tempdip[1:4])))
             j = j + 1
 
       # Extracts the magnetic moment
@@ -471,7 +472,7 @@ def readgaulog36(logfile):
             f.seek(pos) #go back one line
             break
           else:
-            mag.append(map(float,tempdip[1:4]))
+            mag.append(list(map(float,tempdip[1:4])))
             j = j + 1
 
       # Extracts the site energy values
@@ -481,7 +482,7 @@ def readgaulog36(logfile):
 
     # read couplings
     if DoCoup: 
-      if c.v(): print  " ... reading couplings in %s using %s values" % (logfile,c.OPT['coup'])
+      if c.v(): print(" ... reading couplings in %s using %s values" % (logfile,c.OPT['coup']))
       Cdtyp = [('Ch1',int),('Tr1',int),('Ch2',int),('Tr2',int),('Coup',float)]
       Coup = []
 
@@ -547,15 +548,15 @@ def readgaulog36(logfile):
 def printlocal(Site,Dipo,Dip2,Cent):
 
   for n in range(c.OPT['NChrom']):
-    print("\nChromophore     : %10s" % n )
+    print(("\nChromophore     : %10s" % n ))
 #    print("Center of trans : %10.4f %10.4f %10.4f" % (Cent[n][0],Cent[n][1],Cent[n][2]))
-    print'----------------------------------------------------------'
-    print' #   E (eV)      mx      my     mz        Dip2   (a.u.) '
-    print'----------------------------------------------------------'
+    print('----------------------------------------------------------')
+    print(' #   E (eV)      mx      my     mz        Dip2   (a.u.) ')
+    print('----------------------------------------------------------')
 #
     for i in range(c.OPT['NTran'][n]):
       k = sum(c.OPT['NTran'][0:n])+i
-      print("%2d %8.4f   %6.3f  %6.3f  %6.3f    %6.3f "%(i+1,Site[k],Dipo[k][0],Dipo[k][1],Dipo[k][2],Dip2[k]))
+      print(("%2d %8.4f   %6.3f  %6.3f  %6.3f    %6.3f "%(i+1,Site[k],Dipo[k][0],Dipo[k][1],Dipo[k][2],Dip2[k])))
 
 # *****************************************************************************
 

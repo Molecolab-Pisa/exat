@@ -37,14 +37,17 @@
 #
 
 import os,sys
-import gtk,pango
+import gi
+gi.require_version('Gtk', '3.0')
+from gi.repository import Gtk as gtk, Pango as pango
+#import pango
 
 import matplotlib as mpl
-mpl.use('GTKAgg')
+mpl.use('GTK3Agg')
 import matplotlib.pyplot as plt
 
-from matplotlib.backends.backend_gtkagg import FigureCanvasGTKAgg as Canvas
-from matplotlib.backends.backend_gtkagg import NavigationToolbar2GTKAgg as NavigationToolbar
+from matplotlib.backends.backend_gtk3agg import FigureCanvasGTK3Agg as Canvas
+from matplotlib.backends.backend_gtk3 import NavigationToolbar2GTK3 as NavigationToolbar
 
 
 import numpy as np
@@ -134,7 +137,7 @@ def specalc(E,D2,R,broad,shp='gau',xlims=None):
   # Define X-Axis (in wavenumbers)
   x=np.arange(*xlims,dtype=float)
   NStep,NTran = len(x),len(E)
-	
+
   # Initilize the intensity
   OD = np.zeros((NStep,NTran),dtype=float)
   CD = np.zeros((NStep,NTran),dtype=float)
@@ -146,7 +149,7 @@ def specalc(E,D2,R,broad,shp='gau',xlims=None):
     LineShape = lambda p, x: (x/(p[1]*np.sqrt(2*np.pi))*np.exp(-0.5*((x-p[0])/p[1])**2))
   else :           # Lorentzian
     LineShape = lambda p, x: (x/(np.pi*p[1]))*(p[1]**2/((x-p[0])**2+p[1]**2))
-		    
+    
   for j in range(len(E)):
     p = (E[j],broad[j]) 
     OD[:,j] = LineShape(p,x)*D2[j]*factOD
@@ -209,7 +212,7 @@ class EasyList:
         self.store = gtk.ListStore(*coltypes)
         self.cellr = gtk.CellRendererText()
         self.cellr.set_property('cell-background', '#efefef')
-        self.cellr.set_property('alignment', pango.ALIGN_RIGHT)
+        self.cellr.set_property('alignment', pango.Alignment.RIGHT)
         font = pango.FontDescription('courier bold 11')
         self.cellr.set_property('font-desc', font)
         self.cellr.set_property('editable', True)
@@ -251,8 +254,8 @@ class EXATGUI:
   specopt       = dict()
 
   def generic_error(self,message=None):
-    dl = gtk.MessageDialog(parent=self.window,flags=0,type=gtk.MESSAGE_ERROR,
-                       buttons=gtk.BUTTONS_OK,message_format=None)
+    dl = gtk.MessageDialog(parent=self.window,flags=0,type=gtk.MessageType.ERROR,
+                       buttons=gtk.ButtonsType.OK,message_format=None)
     if message is not None:
       dl.set_markup('<big>'+message+'</big>')
     else:
@@ -261,8 +264,8 @@ class EXATGUI:
     dl.destroy()
 
   def generic_info(self,message):
-    dl = gtk.MessageDialog(parent=self.window,flags=0,type=gtk.MESSAGE_INFO,
-                       buttons=gtk.BUTTONS_OK,message_format=None)
+    dl = gtk.MessageDialog(parent=self.window,flags=0,type=gtk.MessageType.INFO,
+                       buttons=gtk.ButtonsType.OK,message_format=None)
     dl.set_markup(message)
     dl.run()
     dl.destroy()
@@ -314,7 +317,7 @@ class EXATGUI:
         c.OPT['read'] = 'external'
         c.OPT['seltran'] = True
       else:
-	raise Exception('Could not read ext files')
+        raise Exception('Could not read ext files')
     # System-independent call (including seltran)
     logname = self.inlog.split('/')[-1]
     self.statusbar.push(self.context_id, "Reading %s ..." % (logname))
@@ -350,15 +353,15 @@ class EXATGUI:
     self.EXCDipoLen = trans.EXCalc(self.coeff,self.DipoLen)
     
     # Compute Linear Absorption Spectrum
-    print "\n ... Compute the Linear Absorption Spectrum"
+    print("\n ... Compute the Linear Absorption Spectrum")
     self.EXCDipo2   = np.sum(self.EXCDipoLen**2,axis=1)
     
     # Compute Linear Dichroism Spectrum
-    print "\n ... Compute the Linear Dichroism Spectrum"
+    print("\n ... Compute the Linear Dichroism Spectrum")
     self.LD = trans.LinDichro(self.EXCDipoLen)
     
     # Compute Rotational Strength ...
-    print "\n ... Compute the Circular Dichroism Spectrum"
+    print("\n ... Compute the Circular Dichroism Spectrum")
     self.EXCRot = trans.RotStrength(EEN,self.Cent,self.coeff,
               self.DipoLen,self.EXCDipoLen,self.DipoVel,self.MagInt,RxDel,self.Site)
     # Done
@@ -387,7 +390,7 @@ class EXATGUI:
         ITran  = np.where(selection[i])[0]
         Sel.append(ITran+1)
 
-    self.system = self.system.seltran( zip(SelChromList,Sel) )
+    self.system = self.system.seltran( list(zip(SelChromList,Sel)) )
 
     self.update_data()
 
@@ -527,13 +530,13 @@ class EXATGUI:
     pass
 
   def on_gtk_save_as_activate(self, menuitem, data=None):
-    self.fcd = gtk.FileChooserDialog("Save as...",None,gtk.FILE_CHOOSER_ACTION_SAVE,
-          buttons=(gtk.STOCK_CANCEL, gtk.RESPONSE_CANCEL, gtk.STOCK_OPEN, gtk.RESPONSE_OK))
+    self.fcd = gtk.FileChooserDialog("Save as...",None,gtk.FileChooserAction.SAVE,
+          buttons=(gtk.STOCK_CANCEL, gtk.ResponseType.CANCEL, gtk.STOCK_OPEN, gtk.ResponseType.OK))
     if self.current_folder is not None:
       self.fcd.set_current_folder(self.current_folder)
 
     self.response = self.fcd.run() # Open
-    if self.response == gtk.RESPONSE_OK:
+    if self.response == gtk.ResponseType.OK:
       outfile = self.fcd.get_filename()
       # if a file was choosen save the current folder
       self.current_folder = self.fcd.get_current_folder()
@@ -541,7 +544,7 @@ class EXATGUI:
       try: 
         self.savedata(outfile)
         self.generic_info('Data saved to %s' % outfile)
-      except IOError, e: 
+      except IOError as e: 
         self.generic_error('Could not save file %s\n %s' % (outfile,e))
       self.curr_outfile = outfile # save outfile info
     else: self.fcd.destroy()
@@ -572,7 +575,7 @@ class EXATGUI:
     for IChr in range(NChrom):
       for ITr in range(NTran[IChr]):
         # Format numbers here
-	D2 = np.sum(self.DipoLen[k]**2)*c.PhyCon['ToDeb']**2 #D^2
+        D2 = np.sum(self.DipoLen[k]**2)*c.PhyCon['ToDeb']**2 #D^2
         self.sitelist.append_row([IChr+1,ITr+1,("%8.4f" % self.Site[k]),("%12.4f"%D2)])
         k += 1
     pass
@@ -603,8 +606,8 @@ class EXATGUI:
 
 
   def on_file_open_activate(self, menuitem, data=None):
-    self.fcd = gtk.FileChooserDialog("Open...",None,gtk.FILE_CHOOSER_ACTION_OPEN,
-          buttons=(gtk.STOCK_CANCEL, gtk.RESPONSE_CANCEL, gtk.STOCK_OPEN, gtk.RESPONSE_OK))
+    self.fcd = gtk.FileChooserDialog("Open...",None,gtk.FileChooserAction.OPEN,
+          buttons=(gtk.STOCK_CANCEL, gtk.ResponseType.CANCEL, gtk.STOCK_OPEN, gtk.ResponseType.OK))
     if self.current_folder is not None:
       self.fcd.set_current_folder(self.current_folder)
 
@@ -626,7 +629,7 @@ class EXATGUI:
     self.fcd.add_filter(filtr)
    
     self.response = self.fcd.run() # Open
-    if self.response == gtk.RESPONSE_OK:
+    if self.response == gtk.ResponseType.OK:
       self.inlog = self.fcd.get_filename()
       # if a file was choosen save the current folder
       self.current_folder = self.fcd.get_current_folder()
@@ -644,8 +647,8 @@ class EXATGUI:
           ("Exc. State", "Energy (eV)","Dipole Strength (D^2)","Rotatory Strength (10^-40 esu^2 cm^2)"), (int, str, str, str))
 
 
-    self.sitelist.set_selection_mode(gtk.SELECTION_MULTIPLE)
-    self.exclist.set_selection_mode(gtk.SELECTION_MULTIPLE)
+    self.sitelist.set_selection_mode(gtk.SelectionMode.MULTIPLE)
+    self.exclist.set_selection_mode(gtk.SelectionMode.MULTIPLE)
     pass 
 
   # Connect signals to actions
@@ -710,8 +713,8 @@ class EXATGUI:
 
   def on_seltran_alltoggle(self,value=None):
     value = bool(value)
-    N = len(self.sellist)
-    M = len(self.sellist[0])
+    N = len(list(self.sellist))
+    M = len(list(self.sellist[0]))
     for I in range(N):
       for J in range(1,M):
         self.sellist[I][J] = value
@@ -723,13 +726,13 @@ class EXATGUI:
     self.levelsfigure = plt.figure()
     self.levelsfigure.patch.set_facecolor('#dfdfdf') # Color around plot
     self.levelscanvas = Canvas(self.levelsfigure)
-    self.levels_box.pack_start(self.levelscanvas, True, True)
+    self.levels_box.pack_start(self.levelscanvas, True, True, 0)
     self.levToolbar = MyNavToolbar(self.levelscanvas, self.winlevels)
     self.levels_box.pack_start(self.levToolbar,False,True,0)
     self.levToolbar.pan() # Activate pan by default
     self.levToolbar.show()
     self.levelscanvas.set_size_request(400, 600)
-    self.levelscanvas.set_flags(gtk.HAS_FOCUS | gtk.CAN_FOCUS)
+    #self.levelscanvas.set_flags(gtk.HAS_FOCUS | gtk.CAN_FOCUS)
     self.levelscanvas.grab_focus()
     # Connect events and key bindings
     self.levelscanvas.mpl_connect('pick_event', self.onpick_levels)
@@ -739,18 +742,18 @@ class EXATGUI:
     self.coeffigure = plt.figure()
     self.coeffigure.patch.set_facecolor('#dfdfdf') 
     self.coefcanvas = Canvas(self.coeffigure)
-    self.coeff_box.pack_start(self.coefcanvas)
+    self.coeff_box.pack_start(self.coefcanvas, True, True, 0)
     self.coefcanvas.set_size_request(600, 400)
-    self.coefcanvas.set_flags(gtk.HAS_FOCUS | gtk.CAN_FOCUS)
+    #self.coefcanvas.set_flags(gtk.HAS_FOCUS | gtk.CAN_FOCUS)
     self.coefcanvas.grab_focus()
 
     # Spectrum
     self.specfigure = plt.figure() 
     self.specfigure.patch.set_facecolor('#dfdfdf')
     self.speccanvas = Canvas(self.specfigure)
-    self.spec_box.pack_start(self.speccanvas)
+    self.spec_box.pack_start(self.speccanvas, True, True, 0)
     self.speccanvas.set_size_request(600, 400)
-    self.speccanvas.set_flags(gtk.HAS_FOCUS | gtk.CAN_FOCUS)
+    #self.speccanvas.set_flags(gtk.HAS_FOCUS | gtk.CAN_FOCUS)
     self.speccanvas.grab_focus()
     # toolbar
     self.specToolbar = MyNavToolbar(self.speccanvas, self.winspec)
@@ -955,7 +958,7 @@ class EXATGUI:
     X =  event.artist.get_xdata()[0]
     msg = "Energy: %7.4f eV %7.0f cm^-1" % (A,A*c.PhyCon['eV2wn']) 
     self.statusbar.push(self.context_id,msg)
-    print msg
+    print(msg)
     
     # Select site or exc state based on X-pos
     if X < 1.5:
@@ -1013,7 +1016,7 @@ class EXATGUI:
     if (len(sys.argv) > 1):
       self.inlog = sys.argv[1]
       try:
-	self.inlog = os.path.abspath(self.inlog)
+        self.inlog = os.path.abspath(self.inlog)
         self.exat_read()
         self.exat_run()
       except:
