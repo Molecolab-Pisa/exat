@@ -41,21 +41,27 @@
 #   <http://www.gnu.org/licenses/>.
 #
 
+from __future__ import print_function
 import os, sys
 import numpy as np
 import common as c
+from excsystem import ExcSystem, load_npz
 import argparse as arg
 import matplotlib as mpl
 mpl.use('GTKAgg')
 import matplotlib.pyplot as plt
 
+CMAP = mpl.cm.afmhot
 
 #
 # Plot energy levels
 #
-def plot_levels(thresh,site,energy,coeff):
+def plot_levels(thresh,site,energy,coeff,labels=None):
 
   N = len(energy)
+
+  if labels is None:
+    labels = ['%2d' % (I+1) for I in range(len(site))]
 
   # Hide x-axis and set reasonable range
   ax = plt.gca()
@@ -85,22 +91,46 @@ def plot_levels(thresh,site,energy,coeff):
   for I,E in enumerate(site):
     ax.plot([0.8,1.2],[E,E],'b-',linewidth=2.0,picker=5)
     # Labels site
-    ax.text(0.6,E,'%2d'%(I+1),fontsize=16,horizontalalignment='right',verticalalignment='bottom')
+    ax.text(0.6,E,labels[I],fontsize=16,horizontalalignment='right',verticalalignment='bottom')
 
   # Plot excitonic levels
   thresh = thresh/1e2 
-  for N in range(len(energy)):
-    C2     = coeff[N]**2
-    for I,E in enumerate(energy[N]):
-      ax.plot([xtics[N+1]-0.2,xtics[N+1]+0.2],[E,E],'b-',linewidth=2.0,picker=5)
+  if Dipo is not None:
+    DipoK = Dipo.copy()/c.PhyCon['ToDeb']
+    D2sum = np.sum(DipoK**2)
+    D2 = []
+    for K in range(N):
+      # Transform dipoles to new/intermediate basis
+      DipoK  = np.dot(coeff[K],DipoK)
+      D2K    = np.sum(DipoK**2,axis=1)
+      D2.append(D2K)
+    D2    = np.asarray(D2)
+    D2max = np.max(D2)
+
+  for K in range(N):
+    C2     = coeff[K]**2
+    for I,E in enumerate(energy[K]):
+      if Dipo is None:
+        ax.plot([xtics[K+1]-0.2,xtics[K+1]+0.2],[E,E],'b-',linewidth=2.0,picker=5)
+      else:
+        #lw = D2[I]/D2sum*20.0
+        #ax.plot([xtics[K+1]-0.2,xtics[K+1]+0.2],[E,E],'b-',linewidth=lw,picker=5)
+        #ax.plot([xtics[K+1]-0.2,xtics[K+1]+0.2],[E,E],'-',color=CMAP(intens),linewidth=2.0,picker=5)
+        intens = D2[K,I]/D2max
+        pos = xtics[K+1]-0.2 + intens*0.4
+        ax.plot([xtics[K+1]-0.2,xtics[K+1]+0.2],[E,E],'k-',
+                        linewidth=1.0,alpha=0.3,picker=5)
+        ax.plot([xtics[K+1]-0.2,pos           ],[E,E],'b-',
+                        linewidth=2.0,picker=5)
+
       contribs = np.where(C2[I] > thresh)[0]
 
-      if N == 0:
+      if K == 0:
         for J in contribs:
           ax.plot([xtics[0]+0.2,xtics[1]-0.2],[site[J],E],'k--')
       else:
         for J in contribs:
-          ax.plot([xtics[N]+0.2,xtics[N+1]-0.2],[energy[N-1][J],E],'k--')
+          ax.plot([xtics[K]+0.2,xtics[K+1]-0.2],[energy[K-1][J],E],'k--')
 
   plt.draw()
   plt.show()
@@ -148,35 +178,53 @@ if __name__ == "__main__" :
   parser.add_argument('-s','--strongcoupling',help='Define threshold for strong couplings (cm^-1)',type=float,default=None)
   parser.add_argument('--partition',help='Select different sets of states to partition the Hamiltonian',
       nargs='+',default=None)
-  parser.add_argument('matrix',help='Matrix file containing site energies and couplings',default='matrix.dat')
+  #parser.add_argument('--dipo',help='Use dipoles to estimate dipole strength of excitons',default=None)
+  #parser.add_argument('matrix',help='Matrix file containing site energies and couplings',default='matrix.dat')
+  parser.add_argument('exatfile',default='exat.npz',
+      help='Exat npz file containing the exciton system')
   args = parser.parse_args()
 
   # Set the options
-  InMatFile  = args.matrix
+  #InMatFile  = args.matrix
+  exatfile   = args.exatfile
   threshold  = args.threshold
   strongcoup = args.strongcoupling
   partition  = args.partition
 
   c.welcome()
-  print "\n > viewlevel.py module"
-  print "   A tool for visualizing the energy levels \n"
+  print("\n > viewlevel.py module")
+  print("   A tool for visualizing the energy levels \n")
 
   if args.v > 0  : OPT['verbosity'] = args.v
 
   # Read the excitonic matrix
-  c.checkfile(InMatFile)
-  print("\n Reading the excitonic matrix from %s" % InMatFile )
-  M   = np.loadtxt(InMatFile,dtype="float")
-  dim = np.shape(M)
-  print(" ... matrix dimension are: %s" % str(dim))
+  c.checkfile(exatfile)
+  print(("\n Reading the excitonic system from %s" % (exatfile) ))
+
+  excsys = load_npz(exatfile)
+
+  excsys.diagonalize()
+
+
+
+  M    = excsys.H
+  Dipo = excsys.DipoLen
+  dim  = np.shape(M)
+  print((" ... matrix dimension are: %s" % str(dim)))
+
+  labels = []
+  for Chrom in excsys.ChromList:
+    for j in excsys.ChromList[Chrom]:
+      labels.append("%s-%d" % (Chrom,j))
+    
 
   if strongcoup is not None:
 
     print("\n Advanced visualization with two step diagonalization")
-    print(" strong coupling threshold = %6.1f cm-1" % strongcoup)
+    print((" strong coupling threshold = %6.1f cm-1" % strongcoup))
 
     # Build H0 Hamiltonian
-    print " ... build H0 Hamiltonian (contains only stron couplings)"
+    print(" ... build H0 Hamiltonian (contains only stron couplings)")
     mat = np.ndarray.flatten(M)
     for i,x in enumerate(mat):
       if abs(x) < strongcoup :
@@ -184,30 +232,30 @@ if __name__ == "__main__" :
     M0 = np.reshape(mat,dim)
 
     # Diagonalize H0 Hamiltonian
-    print " ... diagonalize H0 Hamiltonian"
+    print(" ... diagonalize H0 Hamiltonian")
     e0,v0 = diagonalize(M0)
 
     # Transform H in the basis of v0
-    print " ... project original Hamiltonian in the basis of H0 to obtain H1"
+    print(" ... project original Hamiltonian in the basis of H0 to obtain H1")
     M1 = np.dot(np.dot(v0,M),v0.T)
 
     # Diagonalize H1
-    print " ... diagonalize the H1 Hamiltonian"
+    print(" ... diagonalize the H1 Hamiltonian")
     e1,v1 = diagonalize(M1)
 
     # Plot energy level
-    print " ... print energy levels"
-    plot_levels(threshold,M.diagonal(),[e0,e1],[v0,v1])
+    print(" ... print energy levels")
+    plot_levels(threshold,M.diagonal(),[e0,e1],[v0,v1],labels)
 
   elif partition is not None:
     sets = [np.array(c.stringconverter(x))-1 for x in partition]
     
     print("\n Advanced visualization with two step diagonalization")
     print(" Hamiltonian partitioning")
-    print sets
-    print
+    print(sets)
+    print()
     #
-    print " ... build H0 Hamiltonian (only intra-set)"
+    print(" ... build H0 Hamiltonian (only intra-set)")
     M0 = np.diag(M.diagonal()) # Set diagonal part
     # For every set, add couplings within the set
     for SS in sets:
@@ -216,32 +264,32 @@ if __name__ == "__main__" :
 	for J in range(nn): M0[SS[I],SS[J]] = M[SS[I],SS[J]]
     
     # Diagonalize H0 Hamiltonian
-    print " ... diagonalize H0 Hamiltonian"
+    print(" ... diagonalize H0 Hamiltonian")
     e0,v0 = diagonalize(M0)
 
     # Transform H in the basis of v0
-    print " ... project original Hamiltonian in the basis of H0 to obtain H1"
+    print(" ... project original Hamiltonian in the basis of H0 to obtain H1")
     M1 = np.dot(np.dot(v0,M),v0.T)
 
     # Diagonalize H1
-    print " ... diagonalize the H1 Hamiltonian"
+    print(" ... diagonalize the H1 Hamiltonian")
     e1,v1 = diagonalize(M1)
 
     # Plot energy level
-    print " ... print energy levels"
-    plot_levels(threshold,M.diagonal(),[e0,e1],[v0,v1])
+    print(" ... print energy levels")
+    plot_levels(threshold,M.diagonal(),[e0,e1],[v0,v1],labels)
      
 
   else:                 
 
-    print("\n Diagonalizing the %s matrix" % InMatFile )
+    print("\n Diagonalizing the exciton matrix" )
 
     # Diagonalize M
     e,v = diagonalize(M)
 
     # Plot energy level
-    print " ... print energy levels"
-    plot_levels(threshold,M.diagonal(),[e],[v])
+    print(" ... print energy levels")
+    plot_levels(threshold,M.diagonal(),[e],[v],labels)
 
 
   print("\n Done! \n")

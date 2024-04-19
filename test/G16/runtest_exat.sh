@@ -106,7 +106,7 @@ difftest 3 results.out diag.dat matrix.dat dipo.out geometry.xyz
 a=$? ; nerrors=`expr $nerrors + $a`
 ntests=`expr $ntests + 1`
 
-echo " Running test 5: "
+echo " Running test 4: "
 # Reorient + selecting chromophores
 $EXAT -v Test4.in -i NMR4_Vac.log --seltran --reorient 1 2 --mag -o test4 | tee test4.EXAT.out > $outstream
 echo

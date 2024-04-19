@@ -38,6 +38,7 @@
 #
 
 # Import python modules
+from __future__ import print_function
 import sys, os, glob 
 import numpy as np
 
@@ -47,10 +48,8 @@ import util   as u   # Utilities
 
 # Import WORKING modules
 import readdata      # Read data (from Gaussian output)
-import buildmatrix   # Build the excitonic matrix
-import diag          # Diagonalize the excitonic matrix
 import trans         # Compute the excitonic dip and R
-
+from excsystem import ExcSystem, ChromTranList
 
 # *****************************************************************************
 #
@@ -66,13 +65,43 @@ u.GetOpts()
 #     by the user or extract data from different Gaussian versions
 #
 
-print "\n (1) Read data" 
+print("\n (1) Read data") 
 
 # System-independent call (including seltran)
-Cent,DipoLen,DipoVel,Mag,Site,Coup,Kappa = readdata.Read()
+system,Sel = readdata.Read()
 
 
-# Modify data
+# *****************************************************************************
+#
+# 2. Build the Excitonic Matrix
+#
+print("\n (2) Build the excitonic Hamiltonian") 
+
+if c.OPT['ScaleCoup'] != 1.0:
+  if c.v():
+    print("   ... applying coupling scaling factor"+ \
+  " of %4.1f" % c.OPT['ScaleCoup'])
+  system.coup *= c.OPT['ScaleCoup']
+
+if c.OPT['CleanCoup'] > 0.0:
+  thr = c.OPT['CleanCoup']
+  if c.v():
+    print("   ... applying treshold of %4.1f" % thr)
+  system.coup[abs(system.coup) < thr] = 0.0
+
+# If requested, scale dipole (Length)
+if  c.OPT['ScaleDipo'] != 1.0 : 
+  print(" ... All transition dipoles (length) will be scaled by factor %8.4f"\
+     % c.OPT['ScaleDipo'])
+  system.DipoLen  *= c.OPT['ScaleDipo']  # Scale transition dipole moments 
+
+system.buildmatrix()
+
+# Apply selection of transitions
+if c.OPT['seltran']:
+  system = system.seltran(Sel)
+
+# All other modifications are AFTER seltran!
 
 # If requested reorient TrDipo and change the sign to corresponding couplings
 # This option works only with 1 transition per chromophore
@@ -80,84 +109,84 @@ if ( c.OPT['reorient'] is not None ) :
   if c.OPT['read'] == 'external': 
     c.error(' Reorient Dipoles is not possible with read external')
   else:
-    print " ... The direction of transition dipole moments will be changed according to selected axis"
+    print(" ... The direction of transition dipole moments will be changed according to selected axis")
     if c.OPT['forcedipo'] == True : 
-      print " ... The orientation of transition dipole moments will forced parallel to selected axis"
+      print(" ... The orientation of transition dipole moments will forced parallel to selected axis")
     # Reorient DipoLen and DipoVel, on the basis of DipoLen (!!)
-    DipoLen,DipoVel,Mag,Coup = u.reorientdipo(DipoLen,DipoVel,Mag,Coup)
-
-
-# If requested scales dipoles and couplings
-if c.OPT['ScaleTran'] == True: u.scaletran(DipoLen,Coup,Mag) 
+    system = u.reorientdipo(system)
 
 if c.OPT['read'] != 'external':
+  # If requested, modify transition centers TODO
+  if c.OPT['ModCent']: Cent = u.modcent(Cent)
   # If requested, modify electric transition dipoles
-  if c.OPT['ModDipoLen'] == True: DipoLen = u.moddipo(DipoLen)
-  # If requested performs the transition dipole angle analysis
-  if c.OPT['anadipo'] == True : u.dipoanalysis(DipoLen)
+  if c.OPT['ModDipoLen']: DipoLen = u.moddipo(DipoLen,'dipo')
+  if c.OPT['ModDipoMag']: Mag     = u.moddipo(Mag,'magdipo')
   # If requested, modify site energies
-  if c.OPT['ModSite'] == True: u.modsite(Site)
+  if c.OPT['ModSite']: 
+    system = u.modsite(system)
+  # Possibly modify couplings here
+  if c.OPT['ModCoup']: 
+    system = u.modcoup(system)
+      
 
-# If requested, scale dipole (Length)
-if  c.OPT['ScaleDipo'] != 1.0 : 
-  print " ... All transition dipoles (length) will be scaled by factor %8.4f"\
-     % c.OPT['ScaleDipo']
-  DipoLen  *= c.OPT['ScaleDipo']              # Scale transition dipole moments 
 
-# If verbosity is > 1 , print site energies and save site.out file
-if c.OPT['verbosity'] > 1 : u.prtsite(Site)
+  # If requested performs the transition dipole angle analysis
+  # This should be done AFTER coupling modification
+  # meaning that the input dipoles and couplings are consistent
+  if c.OPT['anadipo']: 
+    system, _ = u.dipoanalysis(system)
 
-# *****************************************************************************
-#
-# 2. Build the Excitonic Matrix
-#
-print "\n (2) Build the excitonic hamiltonian" 
+  # If requested, scale dipoles and couplings
+  if c.OPT['ScaleTran']: 
+    system = u.scaletran(system) 
 
-if c.OPT['read'] != 'external' and  c.OPT['ModCoup'] == True : 
-  Coup = u.modcoup(len(Coup),Coup)
-
-M = buildmatrix.matrixbuilder(Site,Coup)
-
+      
+# Save the exciton Hamiltonian to file
+system.savematrix(c.OutFiles['matrix'])
 # If verbosity is > 1 , print couplings and distances and save coup.out file
-if c.v(1): u.prtcoup(Coup,Cent,Kappa)
+if c.v(1): u.prtcoup(system)
+# If verbosity is > 1 , print site energies and save site.out file
+if c.OPT['verbosity'] > 1 : u.prtsite(system)
 
 # *****************************************************************************
 #
 # 3. Diagonalize the Excitonic Hamiltonian
 #
 
-print "\n (3) Diagonalize the excitonic hamiltonian" 
-energy,coeff = diag.diagonalize(M)
+print("\n (3) Diagonalize the excitonic Hamiltonian") 
+system.diagonalize()
+u.savediag(system.energy,system.coeff,system.coef2)
 
 # Convert some quantities to A.U.
-EEN  =  energy/c.PhyCon['Town']  # Excitonic Energies (Hartree)
+EEN  =  system.energy/c.PhyCon['Town']  # Excitonic Energies (Hartree)
 
 # *****************************************************************************
 #
 # 4. Perform excitonic calculations
 #
 
-RxDel  = np.cross(Cent/c.PhyCon['ToAng'],DipoVel)
+RxDel  = np.cross(system.Cent/c.PhyCon['ToAng'],system.DipoVel)
 
 # Compute internal magnetic moment (DipoMag is gauge-dependent)
-MagInt = Mag - RxDel
+MagInt = system.Mag - RxDel
 
-print "\n (4) Compute the excitonic properties" 
+print("\n (4) Compute the excitonic properties") 
 
-EXCDipoLen = trans.EXCalc(coeff,DipoLen)
+EXCDipoLen = trans.EXCalc(system.coeff,system.DipoLen)
 
 # Compute Linear Absorption Spectrum
-print "\n ... Compute the Linear Absorption Spectrum" 
+print("\n ... Compute the Linear Absorption Intensities") 
 EXCDipo2   = np.sum(EXCDipoLen**2,axis=1)
 
 # Compute Linear Dichroism Spectrum
-print "\n ... Compute the Linear Dichroism Spectrum" 
+print("\n ... Compute the Linear Dichroism Intensities") 
 LD = trans.LinDichro(EXCDipoLen)
 
 # Compute Rotational Strength ...
-print "\n ... Compute the Circular Dichroism Spectrum" 
-EXCRot = trans.RotStrength(EEN,Cent,coeff,DipoLen,EXCDipoLen,
-                             DipoVel,MagInt,RxDel,Site)
+print("\n ... Compute the Circular Dichroism Intensities") 
+EXCRot = trans.RotStrength(EEN,system.Cent,system.coeff,system.DipoLen,
+                             EXCDipoLen,
+                             system.DipoVel,MagInt,RxDel,system.Site)
 
 #
 # 5. Print out the reuslts
@@ -168,14 +197,17 @@ EXCRot = trans.RotStrength(EEN,Cent,coeff,DipoLen,EXCDipoLen,
 # Save file for DIPOLE visualization in VMD
 # This is here to print also excitonic dipo
 # Print intrinsic magnetic moments
-if c.OPT['read'] != 'external': 
-  u.savegeom()
-  u.savevisudipo(Cent,DipoLen,EXCDipoLen,-MagInt)
+if system.has_geom: 
+  u.savegeom(system.anum,system.xyz.tolist())
+  u.savevisudipo(system,EXCDipoLen,-MagInt)
  #np.savetxt(c.OutFiles['cent'],Cent,fmt='%12.5f',
  #  header='Coordinates of centers (ang)')
 
 # Print out results.out
-u.resout(energy,EXCDipo2,LD,EXCRot)
+u.resout(system.energy,EXCDipo2,LD,EXCRot)
+
+# Save the exciton system to file 
+system.save(c.OutFiles['exatdata'])
 
 print("\n Done! \n")
 

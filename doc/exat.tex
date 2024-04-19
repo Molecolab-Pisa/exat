@@ -39,7 +39,7 @@
 
 \section{Version}
 
-This documentation refers to version 1.0.0 
+This documentation refers to version 1.2.0 
 
 Although the development is devoted to mantain the compatibility with previous versions, the newer versions will probably show small differences in the behaviour of the program or in the defaults, in addition to new features. Before using the program, check that the version corresponds to the one reported in this manual.
 
@@ -47,7 +47,7 @@ Although the development is devoted to mantain the compatibility with previous v
 
 \texttt{EXAT} (Excitonic Analysis Tool) is a Molecolab tool\footnote{\texttt{http://molecolab.dcci.unipi.it} ---
 For help or to report a bug, please write to
-\texttt{lorenzo.cupellini@unipi.it}.}. You can obtain the latest version of the program at \texttt{https://doi.org/10.5281/zenodo.3948073}.
+\texttt{lorenzo.cupellini@unipi.it}.}. You can obtain the latest version of the program at \texttt{https://doi.org/10.5281/zenodo.3948072}.
 
 The program performs excitonic calculations from external input, or from the results of Gaussian (R) 16 calculations.
 
@@ -66,7 +66,7 @@ The program performs excitonic calculations from external input, or from the res
 
 \subsection{Needed input files}\label{sec:input}
 
-Before running EXAT, you need a calculation with Gaussian16 on the system of interest with the \texttt{eet=fragment} keyword. An example input file is shown in the following
+Before running \texttt{EXAT}, you need a calculation with Gaussian16 on the system of interest with the \texttt{eet=fragment} keyword. An example input file is shown in the following
 \begin{quote}
 \begin{verbatim}
 #p td(nstates=4) b3lyp/6-31G(d) eet(fragment=4)
@@ -101,7 +101,7 @@ This input tells \texttt{EXAT} to consider only fragments \texttt{1}, \texttt{3}
 \texttt{EXAT} is able to read input from external text files. In this case, several input files are needed. A \texttt{chromlist} file as described in Section~\ref{sec:input} is required, and the transitions should always be specified. The total number of transitions is calculated from the transitions specified in this file.
 
 \paragraph*{Site energy file. } 
-This file specifies the energy of the transitions (In units of eV). Its default name is \texttt{site.in}. It should specify the transition energy of every chromophore, one line per chromophore, \emph{in the same order as the \texttt{\emph{chromlist}} file.} The first column should contain the chromophore number. The other column should contain the site energies of the transitions. For example:
+This file specifies the energy of the transitions (Units are eV). Its default name is \texttt{site.in}. It should specify the transition energy of every chromophore, one line per chromophore, \emph{in the same order as the \texttt{\emph{chromlist}} file.} The first column should contain the chromophore number. The other column should contain the site energies of the transitions. For example:
 
 \begin{quote}
 \begin{verbatim}
@@ -118,7 +118,7 @@ This file specifies the transition dipole moments (In Debye units). Its default 
 This file specifies the centers of the transitions. Its default name is \texttt{cent.in}. The format is the same as the dipoles file. The units are Angstrom.
 
 \paragraph*{Coupling file. } 
-This file specifies all couplings between transitions on different chromophores. The default name is \texttt{coup.in}. The file contains one coupling per line and should be sorted in increasing order of chromophore and transition (\texttt{Chrom1 Chrom2 Tran1 Tran2}, excluding \texttt{Chrom1 $=$ Chrom2}). 
+This file specifies all couplings between transitions on different chromophores. The default name is \texttt{coup.in}. The file contains one coupling per line and should be sorted in increasing order of chromophore and transition (\texttt{Chrom1 Chrom2 Tran1 Tran2}, excluding \texttt{Chrom1 $=$ Chrom2}). The units are cm$^{-1}$.
 
 \emph{The format of this file will be changed in later versions.}
 
@@ -128,7 +128,7 @@ The command-line call to \texttt{EXAT} depends on the type of input (see Section
 
 \subsubsection{Running from Gaussian 16 output}
 
-The command-line syntax for running EXAT from a the Gaussian logfile is:
+The command-line syntax for running \texttt{EXAT} from a the Gaussian logfile is:
 
 \begin{framed}
 \begin{quote}
@@ -172,7 +172,8 @@ This section describes all command-line options for \texttt{EXAT}.
 \paragraph*{Input options:}
 \begin{description}[labelsep=10pt, align=left, labelwidth=80pt,labelindent=0pt,leftmargin=90pt]
 \item[\texttt{-e}] Read all input from external files (Sec.~\ref{sec:input_ext}) 
-\item[\texttt{-{}-log,-i}] Name of the Gaussian logfile. This option is only valid if \texttt{gdvh36} or \texttt{oldh36} versions are used.
+\item[\texttt{-{}-log,-i}] Name of the Gaussian logfile. 
+\item[\texttt{-{}-load,-l}] Load an exat \texttt{.npz} file instead of a log file
 \end{description}
 
 \paragraph*{Output options:}
@@ -207,15 +208,17 @@ This section describes all command-line options for \texttt{EXAT}.
 \item[\texttt{-{}-cleancoup}] Followed by a threshold. All couplings below the threshold will be set to zero.
 \item[\texttt{-{}-refrind}] Followed by the medium refraction index for point-dipole coupling calculations. This option is only valid with the \texttt{-{}-coup PDA} option.
 \item[\texttt{-{}-scalecoup}] Followed by a scaling factor. All couplings will be scaled by that factor. 
-\item[\texttt{-{}-incoup}] Followed by a file containing all couplings. The format of the coupling file is described in Section~\ref{sec:input_ext}. Any couplings read from other input will be overridden.
+\item[\texttt{-{}-incoup}] Followed by a file containing all couplings. The format of the coupling file is described in Section~\ref{sec:input_ext}. This option is only valid for external input.
+\item[\texttt{-{}-modcoup}] Followed by a file containing the couplings to modify. TODO. 
+
 \end{description}
 
 \paragraph*{Options for Transition Dipoles:}
 \begin{description}[labelsep=10pt, align=left, labelwidth=80pt,labelindent=0pt,leftmargin=90pt]
 \item[\texttt{-{}-scaledipo}] Followed by a scaling factor. All transition dipoles will be scaled by that factor.  
 \item[\texttt{-{}-reorient}] Followed by the IDs of two atoms that define an axis, with respect to which the transition dipoles will be reoriented. Signs of transition dipoles will be changed until all dipoles point in the same direction as the defined axis. The signs of the couplings will be changed accordingly.
-\item[\texttt{-{}-forcedipo}] If used with the \texttt{-{}-reorient} option, forces the dipole to be parallel to the defined axis.
-\item[\texttt{-{}-anadipo}] Followed by an input file that specifies a reference frame for every chromophore defined in \texttt{chromlist}. This option activates the transition dipole direction analysis, see Section~\ref{sec:anadipo} for a brief description. It cannot be used with external input.
+%\item[\texttt{-{}-forcedipo}] If used with the \texttt{-{}-reorient} option, forces the dipole to be parallel to the defined axis.
+\item[\texttt{-{}-anadipo}] Followed by an input file that specifies a reference frame for every chromophore defined in \texttt{chromlist}. This option activates the transition dipole direction analysis, see Section~\ref{sec:anadipo} for a brief description. It cannot be used with external input. When this option is activated, \texttt{EXAT} will try to reorient dipoles automatically.
 \item[\texttt{-{}-indipo}] Followed by a transition dipole file. The format of the dipole file is described in Section~\ref{sec:input_ext}. The transition dipoles read in input will be overridden.
 \end{description}
 
@@ -240,6 +243,7 @@ The program prints various files during its execution. The prefix for output fil
 \item[\texttt{matrix.dat}] The excitonic Hamiltonian (all values in cm$^{-1}$)
 \item[\texttt{diag.dat}] Excitonic states, energies and coefficients. The second part of the file contains the squared coefficients
 \item[\texttt{results.out}] Excitonic states, squared excitonic dipoles, LD intensity, and rotatory strengths. This file is the input to \texttt{spectrum.py}
+\item[\texttt{exat.npz}] A \texttt{numpy} file containing all the data extracted/calculated by \texttt{EXAT} and defining the exciton system. This file can be loaded again with the \texttt{--load} option.
 \end{description}
 
 \paragraph*{Other default output files}
@@ -277,14 +281,16 @@ The azimuth ($\theta$) and polar ($\phi$) angles are then defined as follows:
 \end{equation}
 where $\hat{\mathbf{x}}$, $\hat{\mathbf{y}}$ and $\hat{\mathbf{z}}$ are the direction of the axes in the internal reference frame, $\bs{\mu}$ is the dipole, and $\mu$ is its magnitude. The angle $\theta$ therefore represents the deviation of $\bs{\mu}$ from the \texttt{ABC} plane, and $\phi$ is the angle that the projection of $\bs{\mu}$ on the \texttt{ABC} plane makes with the $\vec{AB}$ vector. 
 
-The input file for dipole analysis has the following format. It contains one line per chromophore, in the same order as the \texttt{chromlist} file. The first column is the chromophore number. The following three columns contain the IDs of three atoms that define the reference frame as described above. The following columns can be used for changing the values of $\theta$ and $\phi$. As an example, for the same system shown above: 
+Before running the analysis, the transition dipoles are reoriented in order to be as close as possible to a pre-defined set of angles. In this way, this option can be used in place of the \texttt{-{}-reorient} option to reorient different transitions in different ways.
+
+The input file for dipole analysis has the following format. It contains one line per chromophore, in the same order as the \texttt{chromlist} file. The first column is the chromophore number. The following three columns contain the IDs of three atoms that define the reference frame as described above. The following columns can be used to define a pre-defined orientation in terms of $\theta$ and $\phi$, and possibly to fix the dipole in that orientation. As an example, for the same system shown above: 
 
 \begin{framed}
 \begin{quote}
 \begin{verbatim}
-1    3 11 6    15.0     XX  0.0    90.0
-3    4 10 5     0.0    0.0 
-4    3 11 6     0.0   60.0   XX   -40.0
+1    3 11 6     0.0    0.0   0.0   90.0
+3    4 10 5     0.0    0.0f 
+4    3 11 6     0.0   60.0   0.0  -40.0f
 \end{verbatim}
 \end{quote}
 \end{framed}
@@ -292,13 +298,48 @@ The input file for dipole analysis has the following format. It contains one lin
 This file specifies to use atoms 3,11, and 6 of chromophores 1 and 4 for building their internal reference frames, whereas atoms 4,10, and 5 are used for chromophore 3. 
 The other columns specify that:
 \begin{itemize}
-\item For transition 1 of \texttt{1}, $\theta$ is put to 15$^{\circ}$ and $\phi$ is unchanged
-\item For transition 2 of \texttt{1}, $\theta$ is put to 0$^{\circ}$ and $\phi$ to 90$^{\circ}$ 
-\item For transition 1 of \texttt{3}, $\theta$ and $\phi$ are set to zero
-\item For any other transition of \texttt{3}, the angles are unchanged 
+\item For transition 1 of \texttt{1}, reference $\theta$ and $\phi$ are 0. The sign of the transition is changed if the dipole is oriented in the opposite direction.
+\item For transition 2 of \texttt{1}, reference $\theta$ is 0 and $\phi$ is 90. This means that if the dipole is oriented with $-180 < \phi < 0$, the sign of the transition will be changed.
+\item For transition 1 of \texttt{3}, $\theta$ and $\phi$ references are 0, but now $\phi$ is forced to be zero.
+\item For any other transition of \texttt{3}, the references are 0.
+\item For transition 2 of \texttt{4}, the angle $\phi$ is forced to be -40.
 %\item \dots
 \end{itemize}
 
+\subsection{Use in python scripts}
+
+The newer versions of \texttt{EXAT} have some API functionalities that allow manipulating exciton systems within python. To do so, place at the beginning of your script the following lines:
+\begin{framed}
+\begin{quote}
+\begin{verbatim}
+import numpy as np
+import sys
+sys.path.append('/path/to/your/exat-g16/src/')
+from excsystem import ExcSystem, load_npz, ChromTranList
+\end{verbatim}
+\end{quote}
+\end{framed}
+
+You can now load the \texttt{exat.npz} file as
+\begin{framed}
+\begin{quote}
+\begin{verbatim}
+exciton_system = load_npz('my.exat.npz')
+\end{verbatim}
+\end{quote}
+\end{framed}
+
+The exciton Hamiltonian matrix, dipoles, Site energies, etc. will be accessible from the object. They can be also modified. For example,
+\begin{framed}
+\begin{quote}
+\begin{verbatim}
+print(exciton_system.Site)
+exciton_system.H[0,0] += 100 
+print(exciton_system.Site)
+exciton_system.save('modified.exat.npz')
+\end{verbatim}
+\end{quote}
+\end{framed}
 
 \section{Citation}
 
@@ -307,10 +348,7 @@ Please cite this tool as:
 S. Jurinovich, L. Cupellini, C.A. Guido, and B. Mennucci,  ``EXAT - EXcitonic Analysis Tool'', \emph{J. Comput. Chem.} 2018, \textbf{39}, 279--286,   (doi: 10.1002/jcc.25118)
 
 
-Please also cite the following papers when presenting results obtained with EXAT:
-
-
-S. Jurinovich, G. Pescitelli, L. Di Bari, B. Mennucci, \emph{Phys. Chem. Chem. Phys.}, 2014, \textbf{16}, 16407--16418 (doi: 10.1039/c3cp55428g)
+Please also cite the following paper when using the full magnetic treatment:
 
 S. Jurinovich, C. A. Guido, T. Bruhn, G. Pescitelli, B. Mennucci,  \emph{Chem. Commun.}, 2015, \textbf{51}, 10498--10501 (doi: 10.1039/C5CC03167B)
 

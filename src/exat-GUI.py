@@ -37,14 +37,17 @@
 #
 
 import os,sys
-import gtk,pango
+import gi
+gi.require_version('Gtk', '3.0')
+from gi.repository import Gtk as gtk, Pango as pango
+#import pango
 
 import matplotlib as mpl
-mpl.use('GTKAgg')
+mpl.use('GTK3Agg')
 import matplotlib.pyplot as plt
 
-from matplotlib.backends.backend_gtkagg import FigureCanvasGTKAgg as Canvas
-from matplotlib.backends.backend_gtkagg import NavigationToolbar2GTKAgg as NavigationToolbar
+from matplotlib.backends.backend_gtk3agg import FigureCanvasGTK3Agg as Canvas
+from matplotlib.backends.backend_gtk3 import NavigationToolbar2GTK3 as NavigationToolbar
 
 
 import numpy as np
@@ -52,8 +55,8 @@ import numpy as np
 import common as c
 import util as u
 import readdata      # Read data (from Gaussian output)
-import buildmatrix   # Build the excitonic matrix
-import diag          # Diagonalize the excitonic matrix
+#import buildmatrix   # Build the excitonic matrix
+#import diag          # Diagonalize the excitonic matrix
 import trans         # Compute the excitonic dip and R
 
 # Reset program version in common
@@ -134,7 +137,7 @@ def specalc(E,D2,R,broad,shp='gau',xlims=None):
   # Define X-Axis (in wavenumbers)
   x=np.arange(*xlims,dtype=float)
   NStep,NTran = len(x),len(E)
-	
+
   # Initilize the intensity
   OD = np.zeros((NStep,NTran),dtype=float)
   CD = np.zeros((NStep,NTran),dtype=float)
@@ -146,7 +149,7 @@ def specalc(E,D2,R,broad,shp='gau',xlims=None):
     LineShape = lambda p, x: (x/(p[1]*np.sqrt(2*np.pi))*np.exp(-0.5*((x-p[0])/p[1])**2))
   else :           # Lorentzian
     LineShape = lambda p, x: (x/(np.pi*p[1]))*(p[1]**2/((x-p[0])**2+p[1]**2))
-		    
+    
   for j in range(len(E)):
     p = (E[j],broad[j]) 
     OD[:,j] = LineShape(p,x)*D2[j]*factOD
@@ -209,7 +212,7 @@ class EasyList:
         self.store = gtk.ListStore(*coltypes)
         self.cellr = gtk.CellRendererText()
         self.cellr.set_property('cell-background', '#efefef')
-        self.cellr.set_property('alignment', pango.ALIGN_RIGHT)
+        self.cellr.set_property('alignment', pango.Alignment.RIGHT)
         font = pango.FontDescription('courier bold 11')
         self.cellr.set_property('font-desc', font)
         self.cellr.set_property('editable', True)
@@ -251,8 +254,8 @@ class EXATGUI:
   specopt       = dict()
 
   def generic_error(self,message=None):
-    dl = gtk.MessageDialog(parent=self.window,flags=0,type=gtk.MESSAGE_ERROR,
-                       buttons=gtk.BUTTONS_OK,message_format=None)
+    dl = gtk.MessageDialog(parent=self.window,flags=0,type=gtk.MessageType.ERROR,
+                       buttons=gtk.ButtonsType.OK,message_format=None)
     if message is not None:
       dl.set_markup('<big>'+message+'</big>')
     else:
@@ -261,8 +264,8 @@ class EXATGUI:
     dl.destroy()
 
   def generic_info(self,message):
-    dl = gtk.MessageDialog(parent=self.window,flags=0,type=gtk.MESSAGE_INFO,
-                       buttons=gtk.BUTTONS_OK,message_format=None)
+    dl = gtk.MessageDialog(parent=self.window,flags=0,type=gtk.MessageType.INFO,
+                       buttons=gtk.ButtonsType.OK,message_format=None)
     dl.set_markup(message)
     dl.run()
     dl.destroy()
@@ -288,8 +291,8 @@ class EXATGUI:
   def clearwindow(self):
     # Clear status bar and title
     self.window.set_title('EXAT - EXcitonic Analysis Tool')
-    self.statusbar.remove_all(self.context_id)
-    self.statusbar.remove_all(self.context_id) # Doing twice should do the trick
+    #self.statusbar.remove_all(self.context_id)
+    #self.statusbar.remove_all(self.context_id) # Doing twice should do the trick
     # Clear tables
     self.sitelist.clear()
     self.exclist.clear()
@@ -300,7 +303,10 @@ class EXATGUI:
 
   def exat_read(self):
     self.clearwindow()
-    if self.inlog[-3:] != '.in':
+    if self.inlog[-4:] == '.npz':
+      c.ExtFiles['load'] = self.inlog
+      c.OPT['read'] = 'load'
+    elif self.inlog[-3:] != '.in':
       c.OPT['logfile'] = self.inlog
       c.OPT['read'] = guessversion(self.inlog)
     else:
@@ -311,21 +317,19 @@ class EXATGUI:
         c.OPT['read'] = 'external'
         c.OPT['seltran'] = True
       else:
-	raise Exception('Could not read ext files')
+        raise Exception('Could not read ext files')
     # System-independent call (including seltran)
     logname = self.inlog.split('/')[-1]
     self.statusbar.push(self.context_id, "Reading %s ..." % (logname))
     try:
-      self.Cent,self.DipoLen,self.DipoVel,self.Mag,self.Site,\
-                   self.Coup,self.Kappa = readdata.Read()
+      self.system,self.Sel = readdata.Read()
     except:
       raise Exception('Could not read file %s' % (self.inlog))
     self.statusbar.push(self.context_id, "Loaded %s" % (logname))
     self.window.set_title('EXAT - %s' % (logname))
     self.update_data()
     # Also, save original data in such a way that we can retrieve them
-    self.original_data = (c.NChrom,c.NTran,self.Cent,self.DipoLen,
-          self.DipoVel,self.Mag,self.Site,self.Coup,self.Kappa)
+    self.original_data = self.system.copy()
     
   def exat_run(self):
     if c.OPT['RCalc'] == 'mag' and c.OPT['read'] == 'external':
@@ -333,30 +337,31 @@ class EXATGUI:
       return False
 
     self.statusbar.push(self.context_id, "Building excitonic Hamiltonian ... ")
-    self.H = buildmatrix.matrixbuilder(self.Site,self.Coup)
+    self.H = self.system.buildmatrix()
 
     self.statusbar.push(self.context_id, "Diagonalize excitonic Hamiltonian ... ")
-    self.energy,self.coeff = diag.diagonalize(self.H)
+    self.energy,self.coeff = self.system.diagonalize()
+
     # Convert some quantities to A.U.
     EEN  =  self.energy/c.PhyCon['Town']  # Excitonic Energies (Hartree)
 
     self.statusbar.push(self.context_id, "Compute excitonic properties ... ")
-    RxDel  = np.cross(self.Cent/c.PhyCon['ToAng'],self.DipoVel)    
+    RxDel  = np.cross(self.system.Cent/c.PhyCon['ToAng'],self.system.DipoVel)    
     # Compute internal magnetic moment (DipoMag is gauge-dependent)
     self.MagInt = self.Mag - RxDel
 
     self.EXCDipoLen = trans.EXCalc(self.coeff,self.DipoLen)
     
     # Compute Linear Absorption Spectrum
-    print "\n ... Compute the Linear Absorption Spectrum"
+    print("\n ... Compute the Linear Absorption Spectrum")
     self.EXCDipo2   = np.sum(self.EXCDipoLen**2,axis=1)
     
     # Compute Linear Dichroism Spectrum
-    print "\n ... Compute the Linear Dichroism Spectrum"
+    print("\n ... Compute the Linear Dichroism Spectrum")
     self.LD = trans.LinDichro(self.EXCDipoLen)
     
     # Compute Rotational Strength ...
-    print "\n ... Compute the Circular Dichroism Spectrum"
+    print("\n ... Compute the Circular Dichroism Spectrum")
     self.EXCRot = trans.RotStrength(EEN,self.Cent,self.coeff,
               self.DipoLen,self.EXCDipoLen,self.DipoVel,self.MagInt,RxDel,self.Site)
     # Done
@@ -378,61 +383,16 @@ class EXATGUI:
 
     # Get selection
     SelChromList = [] ; Sel = []
-    for i in range(c.NChrom):
+    for i in range(self.system.NChrom):
       if np.any(selection[i]):
         # Only append Chroms that have selected transitions
         SelChromList.append(i+1)
         ITran  = np.where(selection[i])[0]
         Sel.append(ITran+1)
 
+    self.system = self.system.seltran( list(zip(SelChromList,Sel)) )
 
-    # Do seltran
-    NChrom = c.NChrom # Old NChrom
-    ChromList = range(1,NChrom+1) # old chromlist
-    SelNChrom = len(SelChromList)
-     
-    IndChrom = [ ChromList.index(x) for x in SelChromList ]
-
-    self.Site      = np.array(readdata.delist(self.Site,NChrom,IndChrom,Sel))
-    self.DipoLen   = np.array(readdata.delist(self.DipoLen,NChrom,IndChrom,Sel))
-    self.DipoVel   = np.array(readdata.delist(self.DipoVel,NChrom,IndChrom,Sel))
-    self.Mag       = np.array(readdata.delist(self.Mag,NChrom,IndChrom,Sel))
-    self.Cent      = np.array(readdata.delist(self.Cent,NChrom,IndChrom,Sel))
-
-    #
-    # Select couplings
-    #
-  
-    k = 0
-    NewCoup = [] ; NewKappa = []
-    for I in range(NChrom):
-      for J in range(I+1,NChrom):
-        for it in range(c.NTran[I]):
-          for jt in range(c.NTran[J]):
-            if I in IndChrom and J in IndChrom:
-              IndI = IndChrom.index(I)
-              IndJ = IndChrom.index(J)
-              if it+1 in Sel[IndI] and jt+1 in Sel[IndJ]:
-                NewCoup.append(self.Coup[k])
-                if self.Kappa: 
-                  NewKappa.append(self.Kappa[k])
-            k += 1
-
-    #TODO: Select geometry (for later usage)
-
-    #
-    # Reset NTran and NChrom properly
-    #
-    NTran = []
-    for i in Sel:
-      NTran.append(len(i))
-    NChrom = len(NTran)
-  
-    c.NChrom = NChrom
-    c.NTran = NTran # Save NTran to Common 
-
-    self.Coup = np.array(NewCoup)
-    self.Kappa= np.array(NewKappa)
+    self.update_data()
 
     # All OK
     return True 
@@ -442,6 +402,9 @@ class EXATGUI:
     c.OPT['OutPrefix'] = outfile
     c.OutFiles = c.OutFilesBK.copy()
     c.setoutfiles()
+
+    # npz
+    self.system.save(c.OutFiles['exatdata'])
 
     # matrix
     np.savetxt(c.OutFiles['matrix'],self.H,fmt='%10.1f',delimiter='',newline='\n')
@@ -457,8 +420,8 @@ class EXATGUI:
       np.savetxt(f,TblProb,fmt='%10.4f ',delimiter='',newline='\n')
 
     # Visudipo
-    u.savegeom()
-    u.savevisudipo(self.Cent,self.DipoLen,self.EXCDipoLen,-self.MagInt)
+    u.savegeom(self.system.anum,self.system.xyz.tolist())
+    u.savevisudipo(self.system,self.EXCDipoLen,-self.MagInt)
 
     #results
     u.resout(self.energy,self.EXCDipo2,self.LD,self.EXCRot)
@@ -501,8 +464,9 @@ class EXATGUI:
   def on_menu_seltran_activate(self,menuitem,data=None):
     # first of all, retrieve original data
     try:
-      c.NChrom,c.NTran,self.Cent,self.DipoLen,self.DipoVel,\
-      self.Mag,self.Site,self.Coup,self.Kappa = self.original_data
+      self.system = self.original_data.copy()
+      self.system.buildmatrix()
+      self.update_data()
     except:
       return None
     self.init_winseltran()
@@ -566,13 +530,13 @@ class EXATGUI:
     pass
 
   def on_gtk_save_as_activate(self, menuitem, data=None):
-    self.fcd = gtk.FileChooserDialog("Save as...",None,gtk.FILE_CHOOSER_ACTION_SAVE,
-          buttons=(gtk.STOCK_CANCEL, gtk.RESPONSE_CANCEL, gtk.STOCK_OPEN, gtk.RESPONSE_OK))
+    self.fcd = gtk.FileChooserDialog("Save as...",None,gtk.FileChooserAction.SAVE,
+          buttons=(gtk.STOCK_CANCEL, gtk.ResponseType.CANCEL, gtk.STOCK_OPEN, gtk.ResponseType.OK))
     if self.current_folder is not None:
       self.fcd.set_current_folder(self.current_folder)
 
     self.response = self.fcd.run() # Open
-    if self.response == gtk.RESPONSE_OK:
+    if self.response == gtk.ResponseType.OK:
       outfile = self.fcd.get_filename()
       # if a file was choosen save the current folder
       self.current_folder = self.fcd.get_current_folder()
@@ -580,7 +544,7 @@ class EXATGUI:
       try: 
         self.savedata(outfile)
         self.generic_info('Data saved to %s' % outfile)
-      except IOError, e: 
+      except IOError as e: 
         self.generic_error('Could not save file %s\n %s' % (outfile,e))
       self.curr_outfile = outfile # save outfile info
     else: self.fcd.destroy()
@@ -598,11 +562,20 @@ class EXATGUI:
   def update_data(self):
     self.sitelist.clear()
     # Update site energy
+    self.Site    = self.system.Site/c.PhyCon['eV2wn']
+    self.DipoLen = self.system.DipoLen
+    self.DipoVel = self.system.DipoVel
+    self.Cent    = self.system.Cent
+    self.Mag     = self.system.Mag 
+
     k = 0
-    for IChr in range(c.NChrom):
-      for ITr in range(c.NTran[IChr]):
+    NChrom  = self.system.NChrom
+    NTran   = self.system.NTran
+    crlist  = self.system.ChromList.Chrom
+    for IChr in range(NChrom):
+      for ITr in range(NTran[IChr]):
         # Format numbers here
-	D2 = np.sum(self.DipoLen[k]**2)*c.PhyCon['ToDeb']**2 #D^2
+        D2 = np.sum(self.DipoLen[k]**2)*c.PhyCon['ToDeb']**2 #D^2
         self.sitelist.append_row([IChr+1,ITr+1,("%8.4f" % self.Site[k]),("%12.4f"%D2)])
         k += 1
     pass
@@ -626,15 +599,15 @@ class EXATGUI:
 
     H_str = ''
     for J in range(n):
-      H_str += (' %12.4f'*n + '\n') % tuple(self.H[J].tolist()[0])
+      H_str += (' %12.4f'*n + '\n') % tuple(self.H[J].tolist())
     buff.set_text(H_str)
 
     pass
 
 
   def on_file_open_activate(self, menuitem, data=None):
-    self.fcd = gtk.FileChooserDialog("Open...",None,gtk.FILE_CHOOSER_ACTION_OPEN,
-          buttons=(gtk.STOCK_CANCEL, gtk.RESPONSE_CANCEL, gtk.STOCK_OPEN, gtk.RESPONSE_OK))
+    self.fcd = gtk.FileChooserDialog("Open...",None,gtk.FileChooserAction.OPEN,
+          buttons=(gtk.STOCK_CANCEL, gtk.ResponseType.CANCEL, gtk.STOCK_OPEN, gtk.ResponseType.OK))
     if self.current_folder is not None:
       self.fcd.set_current_folder(self.current_folder)
 
@@ -656,7 +629,7 @@ class EXATGUI:
     self.fcd.add_filter(filtr)
    
     self.response = self.fcd.run() # Open
-    if self.response == gtk.RESPONSE_OK:
+    if self.response == gtk.ResponseType.OK:
       self.inlog = self.fcd.get_filename()
       # if a file was choosen save the current folder
       self.current_folder = self.fcd.get_current_folder()
@@ -674,8 +647,8 @@ class EXATGUI:
           ("Exc. State", "Energy (eV)","Dipole Strength (D^2)","Rotatory Strength (10^-40 esu^2 cm^2)"), (int, str, str, str))
 
 
-    self.sitelist.set_selection_mode(gtk.SELECTION_MULTIPLE)
-    self.exclist.set_selection_mode(gtk.SELECTION_MULTIPLE)
+    self.sitelist.set_selection_mode(gtk.SelectionMode.MULTIPLE)
+    self.exclist.set_selection_mode(gtk.SelectionMode.MULTIPLE)
     pass 
 
   # Connect signals to actions
@@ -701,7 +674,7 @@ class EXATGUI:
     try: self.Site
     except: return False
       
-    NTrMax = max(c.NTran)
+    NTrMax = max(self.system.NTran)
 
     coltyp  = [int]+NTrMax*[bool]    
 
@@ -730,8 +703,9 @@ class EXATGUI:
       
       # Add rows
       #self.sellist.clear()
-      for J in range(c.NChrom):
-        self.sellist.append([J+1]+[True]*c.NTran[J]+[False]*(NTrMax-c.NTran[J]))
+      NTran = self.system.NTran
+      for J in range(self.system.NChrom):
+        self.sellist.append([J+1]+[True]*NTran[J]+[False]*(NTrMax-NTran[J]))
 
 
   def on_seltran_cell_toggled(self,widg,path,col):
@@ -739,8 +713,8 @@ class EXATGUI:
 
   def on_seltran_alltoggle(self,value=None):
     value = bool(value)
-    N = len(self.sellist)
-    M = len(self.sellist[0])
+    N = len(list(self.sellist))
+    M = len(list(self.sellist[0]))
     for I in range(N):
       for J in range(1,M):
         self.sellist[I][J] = value
@@ -752,13 +726,13 @@ class EXATGUI:
     self.levelsfigure = plt.figure()
     self.levelsfigure.patch.set_facecolor('#dfdfdf') # Color around plot
     self.levelscanvas = Canvas(self.levelsfigure)
-    self.levels_box.pack_start(self.levelscanvas, True, True)
+    self.levels_box.pack_start(self.levelscanvas, True, True, 0)
     self.levToolbar = MyNavToolbar(self.levelscanvas, self.winlevels)
     self.levels_box.pack_start(self.levToolbar,False,True,0)
     self.levToolbar.pan() # Activate pan by default
     self.levToolbar.show()
     self.levelscanvas.set_size_request(400, 600)
-    self.levelscanvas.set_flags(gtk.HAS_FOCUS | gtk.CAN_FOCUS)
+    #self.levelscanvas.set_flags(gtk.HAS_FOCUS | gtk.CAN_FOCUS)
     self.levelscanvas.grab_focus()
     # Connect events and key bindings
     self.levelscanvas.mpl_connect('pick_event', self.onpick_levels)
@@ -768,18 +742,18 @@ class EXATGUI:
     self.coeffigure = plt.figure()
     self.coeffigure.patch.set_facecolor('#dfdfdf') 
     self.coefcanvas = Canvas(self.coeffigure)
-    self.coeff_box.pack_start(self.coefcanvas)
+    self.coeff_box.pack_start(self.coefcanvas, True, True, 0)
     self.coefcanvas.set_size_request(600, 400)
-    self.coefcanvas.set_flags(gtk.HAS_FOCUS | gtk.CAN_FOCUS)
+    #self.coefcanvas.set_flags(gtk.HAS_FOCUS | gtk.CAN_FOCUS)
     self.coefcanvas.grab_focus()
 
     # Spectrum
     self.specfigure = plt.figure() 
     self.specfigure.patch.set_facecolor('#dfdfdf')
     self.speccanvas = Canvas(self.specfigure)
-    self.spec_box.pack_start(self.speccanvas)
+    self.spec_box.pack_start(self.speccanvas, True, True, 0)
     self.speccanvas.set_size_request(600, 400)
-    self.speccanvas.set_flags(gtk.HAS_FOCUS | gtk.CAN_FOCUS)
+    #self.speccanvas.set_flags(gtk.HAS_FOCUS | gtk.CAN_FOCUS)
     self.speccanvas.grab_focus()
     # toolbar
     self.specToolbar = MyNavToolbar(self.speccanvas, self.winspec)
@@ -984,7 +958,7 @@ class EXATGUI:
     X =  event.artist.get_xdata()[0]
     msg = "Energy: %7.4f eV %7.0f cm^-1" % (A,A*c.PhyCon['eV2wn']) 
     self.statusbar.push(self.context_id,msg)
-    print msg
+    print(msg)
     
     # Select site or exc state based on X-pos
     if X < 1.5:
@@ -1042,7 +1016,7 @@ class EXATGUI:
     if (len(sys.argv) > 1):
       self.inlog = sys.argv[1]
       try:
-	self.inlog = os.path.abspath(self.inlog)
+        self.inlog = os.path.abspath(self.inlog)
         self.exat_read()
         self.exat_run()
       except:
