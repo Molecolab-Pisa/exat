@@ -115,7 +115,7 @@ def findpeaks(typespec,x,y,broad):
 #width = np.arange(1,10)*broad/3
 #peakind = signal.find_peaks_cwt(y, width)
  peakind = signal.argrelmax(y)[0]
- if typespec is not 'OD': peakind = np.append(peakind,signal.argrelmin(y)[0])
+ if typespec != 'OD': peakind = np.append(peakind,signal.argrelmin(y)[0])
  peakind = np.sort(peakind)
 
  NPeaks = len(peakind)

@@ -103,11 +103,16 @@ def GetOpts():
   # Centers options
   grpcnt = parser.add_argument_group(' Center options')
   read_grpcnt = grpcnt.add_mutually_exclusive_group()
-  read_grpcnt.add_argument('--cent',metavar='Center',nargs="*",
+  read_grpcnt.add_argument('--cent',metavar='Center',nargs="+",
     help='How to compute the chromophore center. \
     Default is the geometric center of the chromophore.',default="geom")
   read_grpcnt.add_argument('--incent',metavar='CenterFile',
-    help='Modify chromophore centers according to CenterFile',default=None)
+    help='Read chromophore centers from CenterFile (--readexternal only)',default=None)
+  grpcnt.add_argument('--modcent',metavar='CenterFile',default=None,
+    help='''Modify chromophore centers according to CenterFile.
+    Format: Chrom [Tran] X Y Z (Ang); without Tran all transitions of Chrom
+    are moved. Tran is the position among the selected transitions.
+    Couplings are not recomputed.''')
 
 
   # Couplings
@@ -133,6 +138,8 @@ def GetOpts():
     help='Modify electronic couplings according to the CoupFile',default=None)
   grpcou.add_argument('--incoup',metavar='CoupFile',
     help='Read all ectronic couplings from CoupFile',default=None)
+  grpcou.add_argument('--matrix',metavar='MatrixFile',default=None,
+    help='Read the exciton matrix from MatrixFile')
 
   # Transition Dipoles
   grpdip = parser.add_argument_group(' Options for transition dipoles ')
@@ -150,9 +157,17 @@ def GetOpts():
   grpdip.add_argument('--scaletran',metavar='ScaleFile',
     help='Request scaling of all dipoles and couplings as indicated in ScaleFile.')
   grpdip.add_argument('--indipo','--dipolen',metavar='DipoFile',default=None,
-    help='Modify electric dipole moments according to DipoFile')
+    help='Read electric dipole moments from DipoFile (--readexternal only)')
   grpdip.add_argument('--inmag','--dipomag',metavar='DipoFile',default=None,
-    help='Modify magnetic dipole moments according to DipoFile')
+    help='Read magnetic dipole moments from DipoFile (--readexternal only)')
+  grpdip.add_argument('--moddipo',metavar='DipoFile',default=None,
+    help='''Modify electric (length) dipole moments according to DipoFile.
+    Format: Chrom Tran mu_x mu_y mu_z (Debye). Tran is the position among
+    the selected transitions. Couplings are not recomputed.''')
+  grpdip.add_argument('--modmag',metavar='DipoFile',default=None,
+    help='''Modify magnetic dipole moments according to DipoFile.
+    Format: Chrom Tran m_x m_y m_z (a.u.). Tran is the position among
+    the selected transitions.''')
 
   # CD related
   rsttitle = ' CD related options: \n  Options to compute the rotational strength'
@@ -189,6 +204,16 @@ def GetOpts():
 
   c.ExtFiles['crlist'] = args.chromlist
 
+  # --in* options are for external files only, --mod* options modify
+  # the data read from Gaussian (or loaded)
+  for inopt,modopt in (('indipo','moddipo'),('inmag','modmag'),('incent','modcent')):
+    if args.readexternal and getattr(args,modopt) is not None:
+      c.error("--%s cannot be used with --readexternal: edit the input files instead"\
+        % modopt,"argparse")
+    if not args.readexternal and getattr(args,inopt) is not None:
+      c.error("--%s requires --readexternal: use --%s to modify data read from Gaussian"\
+        % (inopt,modopt),"argparse")
+
   # Check I/O options
   if args.readexternal:
     c.OPT['read'] = 'external'
@@ -197,7 +222,9 @@ def GetOpts():
     if args.insite is not None: c.ExtFiles['insite'] = args.insite
     if args.incoup is not None: c.ExtFiles['incoup'] = args.incoup
     if args.indipo is not None: c.ExtFiles['dipo']   = args.indipo
+    if args.inmag  is not None: c.ExtFiles['magdipo'] = args.inmag
     if args.incent is not None: c.ExtFiles['incent'] = args.incent
+    c.ExtFiles['matrix'] = args.matrix
 
   elif args.load:
     c.OPT['read'] = 'load'
@@ -247,21 +274,21 @@ def GetOpts():
     c.OPT['ModSite']   = True
     c.ExtFiles['insite'] = args.insite
 
-  if args.indipo is not None:
+  if args.moddipo is not None:
     c.OPT['ModDipoLen']  = True
-    c.ExtFiles['dipo']   = args.indipo
+    c.ExtFiles['moddipo'] = args.moddipo
 
-  if args.inmag is not None:
+  if args.modmag is not None:
     c.OPT['ModDipoMag']  = True
-    c.ExtFiles['magdipo'] = args.inmag
+    c.ExtFiles['modmag'] = args.modmag
 
   if args.modcoup is not None:
     c.OPT['ModCoup']  = True
     c.ExtFiles['modcoup'] = args.modcoup
 
-  if args.incent is not None:
+  if args.modcent is not None:
     c.OPT['ModCent']  = True
-    c.ExtFiles['incent'] = args.incent
+    c.ExtFiles['modcent'] = args.modcent
 
   if args.coup      : c.OPT['coup']   = args.coup
   if args.refrind   : c.OPT['refrind']   = args.refrind
@@ -331,6 +358,9 @@ def reorientdipo(system):
   Init = 0
   At1,At2 = c.OPT['reorient'] # direction: from 1 to 2
   K=0
+  # Cache NTran once: rebuilt from scratch on every access otherwise
+  NTran = exc.NTran
+  sgn = np.ones(sum(NTran)) # -1 for reoriented transitions
   for I in range(exc.NChrom):
     # Extract xyz of Chrom I
     End  = Init + exc.NAtom[I]
@@ -340,7 +370,7 @@ def reorientdipo(system):
     axis  = IXYZ[At2-1]-IXYZ[At1-1]
     # Normalize
     axis /= np.linalg.norm(axis)
-    for J in range(exc.NTran[I]):
+    for J in range(NTran[I]):
       sign = np.sign(np.dot(axis,exc.DipoLen[K]))
 
       if sign < 0 : 
@@ -354,15 +384,22 @@ def reorientdipo(system):
         #exc.coup = changesign(I,J,exc.NChrom,exc.NTran,exc.Coup)
         exc.H[K]       *= -1
         exc.H[:,K]     *= -1
+        sgn[K] = -1
 
       if c.OPT['forcedipo'] == True:
-        if exc.NTran[I] > 1 : c.error("NTran > 1: you cannot force all dipoles to be parallel to a specific axis!","reorientdipo")
-        exc.DipoLen[K] = axis*np.linalg.norm(exc.DipoLen[I])
+        if NTran[I] > 1 : c.error("NTran > 1: you cannot force all dipoles to be parallel to a specific axis!","reorientdipo")
+        exc.DipoLen[K] = axis*np.linalg.norm(exc.DipoLen[K])
 
       K += 1
 
     exc.update_sitecoup()
     exc.H[exc.H == 0.0] = 0.0
+
+  # Kappa (PDA) changes sign together with the couplings
+  if exc.Kappa is not None:
+    flip = [sgn[i]*sgn[j] for I in range(exc.NChrom) for J in range(I+1,exc.NChrom)
+            for i in exc.get_chrom_tran(I) for j in exc.get_chrom_tran(J)]
+    exc.Kappa = exc.Kappa*np.array(flip)
 
   return exc
 
@@ -415,10 +452,13 @@ def diporient(ChromFrame,crlist,DipoLen,Theta,Phi,RefTheta,RefPhi,ForceDipo):
   RefAxes = [np.sin(rft)*np.cos(rfp),np.sin(rft)*np.sin(rfp),np.cos(rft)]
   RefAxes = np.asarray(RefAxes).T # ref axes in molecule frame
 
+  # Cache NTran/Chrom once: rebuilt from scratch on every access otherwise
+  NTran = crlist.NTran
+  ChromNames = crlist.Chrom
   for i in range(crlist.NChrom): 
-    k0 = sum(crlist.NTran[:i])
-    Chrom = crlist.Chrom[i]
-    for j in range(crlist.NTran[i]):
+    k0 = sum(NTran[:i])
+    Chrom = ChromNames[i]
+    for j in range(NTran[i]):
       k = k0+j
       if not any(ForceDipo[k]): continue
       # Compute new ref axis in lab frame
@@ -437,6 +477,9 @@ def dipoanalysis(system,nochange=False):
   
   exc = system.copy()  
   NChrom = exc.NChrom
+  # Cache NTran/Chrom once: rebuilt from scratch on every access otherwise
+  NTran  = exc.NTran
+  ChromNames = exc.ChromList.Chrom
     
   if c.v():
     print("\n ==== Transition Dipole Analysis Function ==== \n")
@@ -461,7 +504,7 @@ def dipoanalysis(system,nochange=False):
   RefChrom = []
   AA = [] ; BB = [] ; CC = []
 
-  NTranTot = sum(exc.NTran)
+  NTranTot = sum(NTran)
   RefTheta = np.zeros(NTranTot)#[]
   RefPhi   = np.zeros(NTranTot)#[]
   ForceDipo  = np.zeros((NTranTot,2),dtype=bool) #[]
@@ -488,14 +531,15 @@ def dipoanalysis(system,nochange=False):
     CC.append(np.average(list(IXYZ[j] for j in RefGrpC),axis=0))
 
     # Read whether to change the dipole orientation
-    for j in range(exc.NTran[i]):
+    jj0 = sum(NTran[:i])
+    for j in range(NTran[i]):
       # theta[Chrom i, Tr j] in Data[col]
       # phi    "        "    in Data[col+1] 
       col = 4 + 2*j 
        
       if len(Data) <= col: break
 
-      jj = sum(exc.NTran[:i])+j
+      jj = jj0+j
 
       # theta
       if Data[col].lower().endswith('f'): 
@@ -530,7 +574,7 @@ def dipoanalysis(system,nochange=False):
     # Build new reference frame
     ux,uy,uz = buildrefframe(AA[i],BB[i],CC[i])
     ChromFrame[i] = np.asarray([ux,uy,uz])
-    for j in range(exc.NTran[i]):
+    for j in range(NTran[i]):
       # Evaluate the angle
       Dipo  = exc.DipoLen[k]
   
@@ -567,9 +611,9 @@ def dipoanalysis(system,nochange=False):
     print() 
     k = 0
     for i in range(NChrom):
-      for j in range(exc.NTran[i]): 
+      for j in range(NTran[i]): 
         print(" Chrom %7s  Tran %3d   theta = %10.4f  phi = %10.4f"\
-          % (exc.ChromList.Chrom[i],j+1,Theta[k],Phi[k]))
+          % (ChromNames[i],j+1,Theta[k],Phi[k]))
         if c.v(0): 
           print("   Dipole: " + "  %10.4f  %10.4f  %10.4f " % tuple(exc.DipoLen[k]))
         k += 1   
@@ -606,17 +650,13 @@ def scaletran(system):
   crlist = exc.ChromList
 
   reffile = c.ExtFiles['ScaleTran']
-  c.checkfile(reffile)  
+  c.checkfile(reffile)
   if c.v():
-    print() 
-    print(" ... scaling transition densities using scaling factors from file: %s" % reffile) 
+    print()
+    print(" ... scaling transition densities using scaling factors from file: %s" % reffile)
 
-  # Read reference file
-  with open(reffile,'r') as f:
-    lines = f.readlines()
-
-  for line in lines: 
-    data  = line.split()
+  # Read reference file (skip comments and blank lines)
+  for data in _readmodfile(reffile):
 
     if len(data) < 3:
       c.error("Wrong format for scaletran")
@@ -639,13 +679,13 @@ def scaletran(system):
       if c.v():
         print("     Chrom: %10s   Tran: %3d  scale transition density by %10.6f" \
                % (chrom,itran,fact))
-        exc.DipoLen[k] *= fact
-        exc.DipoVel[k] *= fact
-        exc.Mag[k]     *= fact
-        exc.H[:,k]     *= fact
-        exc.H[k,:]     *= fact
+      exc.DipoLen[k] *= fact
+      exc.DipoVel[k] *= fact
+      exc.Mag[k]     *= fact
+      exc.H[:,k]     *= fact
+      exc.H[k,:]     *= fact
 
-        exc.H[k,k] = system.H[k,k]
+      exc.H[k,k] = system.H[k,k]
 
   return exc
 
@@ -710,91 +750,120 @@ def modsite(system):
 
 # *****************************************************************************
 #
-# Modify electric transition dipole moments
+# Modify transition dipole moments (electric or magnetic)
 #
-def moddipo(Dipo,name):
-
-  # Expected format:
-  # Chrom Tran mu_x mu_y mu_z
-
-  reffile = c.ExtFiles[name]
+def _readmodfile(reffile):
+  # Returns the non-empty lines of reffile (split), comments stripped
   c.checkfile(reffile)
-  if c.v():
-    print(" Dipoles (Debye) will be read from %s" % (reffile))
-
-  fmt = " Chrom: %5s Tran: %3d  Orig dipo = %8.4f %8.4f %8.4f    New dipo = %8.4f %8.4f %8.4f"
-
   with open(reffile,'r') as InFile:
-    lines = InFile.readlines()
-  for line in lines:
-    data  = line.split()
+    lines = [line.split('#')[0].split() for line in InFile]
+  return [data for data in lines if data]
 
-    if len(data) < 5:
-      c.error("Wrong format for moddipo")
+def _tridx(crlist,chrom,itran,where):
+  # 0-based index of transition itran (position among the selected ones)
+  k = crlist.TrIdx(chrom,itran) if itran > 0 else None
+  if k is None:
+    c.error("Chrom %s Tran %d not found in the list of (selected) transitions"\
+      % (chrom,itran),where)
+  return k - 1
+
+def moddipo(system,which='len'):
+  # Note this function is called AFTER seltran:
+  # Tran is the position among the selected transitions.
+  # Expected format:
+  # Chrom Tran mu_x mu_y mu_z   (Debye for 'len', a.u. for 'mag')
+
+  exc = system.copy()
+
+  if which == 'len':
+    reffile = c.ExtFiles['moddipo']
+    Dipo    = exc.DipoLen
+    units   = 'Debye'
+  elif which == 'mag':
+    reffile = c.ExtFiles['modmag']
+    Dipo    = exc.Mag
+    units   = 'a.u.'
+  else:
+    c.error("Unknown dipole type: %s" % which)
+
+  if c.v():
+    print(" ... dipoles (%s) will be modified according to %s" % (units,reffile))
+
+  fmt = "     Chrom: %5s Tran: %3d  Orig dipo = %8.4f %8.4f %8.4f    New dipo = %8.4f %8.4f %8.4f"
+
+  for data in _readmodfile(reffile):
+
+    if len(data) != 5:
+      c.error("Wrong format for moddipo: %s" % ' '.join(data))
 
     chrom = data[0]
     try:
-      itran = int(data[1])
-    except:
-      c.error("Transition number not understood: %s" % data[1])
+      itran  = int(data[1])
+      newdip = np.array(data[2:5],dtype=float)
+    except ValueError:
+      c.error("Line not understood: %s" % ' '.join(data))
 
-    k = c.TrIdx(chrom,itran) - 1
-    newdip = np.array(data[2:5],dtype=float)
+    k = _tridx(exc.ChromList,chrom,itran,"moddipo")
 
-    # Possibly go back to atomic units
-    if name == 'dipo': newdip /= c.PhyCon['ToDeb']
+    # Electric dipoles: Debye in input, a.u. internally
+    if which == 'len':
+      olddip  = Dipo[k]*c.PhyCon['ToDeb']
+      Dipo[k] = newdip/c.PhyCon['ToDeb']
+    else:
+      olddip  = Dipo[k].copy()
+      Dipo[k] = newdip
 
     if c.v():
-      print(fmt % (chrom,k+1,Dipo[k][0],Dipo[k][1],Dipo[k][2],newdip[0],newdip[1],newdip[2]))
-    Dipo[k] = newdip
-        
-  return Dipo
+      print(fmt % ((chrom,itran)+tuple(olddip)+tuple(newdip)))
+
+  return exc
 
 
 # *****************************************************************************
 #
-# Modify centers 
+# Modify centers
 #
-def modcent(Cent):
+def modcent(system):
+  # Note this function is called AFTER seltran:
+  # Tran is the position among the selected transitions.
   # Expected format:
-  # Chrom [Tran] X Y Z 
+  # Chrom [Tran] X Y Z   (Ang)
+  # If Tran is omitted, all transitions of Chrom are moved
 
-  reffile = c.ExtFiles['incent']
-  c.checkfile(reffile)
+  exc    = system.copy()
+  crlist = exc.ChromList
+
+  reffile = c.ExtFiles['modcent']
   if c.v():
-    print(" Centers will be read from %s" % (reffile))
+    print(" ... centers (Ang) will be modified according to %s" % (reffile))
 
-  fmt = "   Chrom: %5s Tran: %3d -- center moved by %12.4f Ang"
+  fmt = "     Chrom: %5s Tran: %3d -- center moved by %12.4f Ang"
 
-  with open(reffile,'r') as InFile:
-    lines = InFile.readlines()
-  for line in lines:
-    data  = line.split()
+  for data in _readmodfile(reffile):
 
-    if len(data) < 4 or len(data) > 5:
-      c.error("Wrong format for modcent")
-    
+    if len(data) not in (4,5):
+      c.error("Wrong format for modcent: %s" % ' '.join(data))
+
     chrom = data[0]
+    try:
+      NewCent = np.array(data[-3:],dtype=float)
+      itran   = int(data[1]) if len(data) == 5 else None
+    except ValueError:
+      c.error("Line not understood: %s" % ' '.join(data))
 
-    if len(data) == 5: 
-      # Look for transition number
-      try:
-        itran = int(data[1])
-      except:
-        c.error("Transition number not understood: %s" % data[1])
-      NewCent = np.array(data[2:5],dtype=float)
-      trlist  = [itran-1]
-    else: 
-      trlist = list(range(c.NTran[c.ChromList.index(chrom)]))
-      NewCent = np.array(data[1:4],dtype=float)
+    if itran is not None:
+      trlist = [_tridx(crlist,chrom,itran,"modcent")]
+    elif chrom in crlist.Chrom:
+      trlist = exc.get_chrom_tran(crlist.index(chrom)).tolist()
+    else:
+      c.error("Chrom %s not found in the list of chromophores" % chrom,"modcent")
 
-    for j in trlist:
-      k = c.TrIdx(chrom,j) 
+    for k in trlist:
       if c.v():
-        print(fmt % (chrom,j+1,np.linalg.norm((NewCent-Cent[k]))))
-      Cent[k] = NewCent
+        print(fmt % (crlist.kChromTran(k+1)+(np.linalg.norm(NewCent-exc.Cent[k]),)))
+      exc.Cent[k] = NewCent
 
-  return Cent
+  return exc
 
 # *****************************************************************************
 #
@@ -812,28 +881,24 @@ def modcoup(system):
   if c.v():
     print(" ... Read coupling changes in file %s " % reffile)
 
-  with open(reffile) as f:
-    while True:
-      # strip comments
-      line = f.readline().split('#')[0]
-      if not line: break
-      data = line.split()
-      try: 
-        iChrom,jChrom,iTran,jTran = data[:4]
-        iTran,jTran = int(iTran),int(jTran)        
-        newcoup     = float(data[4])
-      except ValueError: 
-        c.error('Incorrect format in coupling file')
-      ii = exc.ChromList.TrIdx(iChrom,iTran) - 1 
-      jj = exc.ChromList.TrIdx(jChrom,jTran) - 1
-      if ii == jj:
-        c.error("Trying to change a site energy in modcoup")
-      if c.v():
-        print("     Coupling Chrom %5s (%3d) -- %5s (%3d) set to %10.2f cm^-1"\
-              % (iChrom,iTran,jChrom,jTran,newcoup))
-      exc.H[ii,jj] = newcoup
-      exc.H[jj,ii] = newcoup
-      
+  # Read coupling file (skip comments and blank lines)
+  for data in _readmodfile(reffile):
+    try:
+      iChrom,jChrom,iTran,jTran = data[:4]
+      iTran,jTran = int(iTran),int(jTran)
+      newcoup     = float(data[4])
+    except ValueError:
+      c.error('Incorrect format in coupling file')
+    ii = exc.ChromList.TrIdx(iChrom,iTran) - 1
+    jj = exc.ChromList.TrIdx(jChrom,jTran) - 1
+    if ii == jj:
+      c.error("Trying to change a site energy in modcoup")
+    if c.v():
+      print("     Coupling Chrom %5s (%3d) -- %5s (%3d) set to %10.2f cm^-1"\
+            % (iChrom,iTran,jChrom,jTran,newcoup))
+    exc.H[ii,jj] = newcoup
+    exc.H[jj,ii] = newcoup
+
   return exc
 
 
@@ -908,7 +973,7 @@ def savevisudipo(system,ExcDipo,MagDipo=None):
         OutF.write("## CHROM %-10s TRAN %3d \n" % (ChromList.Chrom[i],j+1))
         # Default: visualize only electric dipole of first transition
         OutF.write("## Electric Transition Dipole \n")
-        if j is not 0: OutF.write('#') 
+        if j != 0: OutF.write('#') 
         OutF.write("graphics 0 color %d; " % (2*j+1) )
         OutF.write("vmd_draw_vector 0 { %10.4f %10.4f %10.4f } { %10.4f %10.4f %10.4f }\n"\
         % (tuple(C[k])+tuple(Dipo[k]*Scale)) )
@@ -1136,7 +1201,6 @@ def prtsite(system):
   OutFile = open(c.OutFiles['site'],'w')
   z = 0
   for i in range(system.NChrom):
-    NTran = system.NTran
     fmt   = "%3d   " + ("%10.4f"*NTran[i])+"\n"
     isite = tuple(Site[z:z+NTran[i]])
     prt   = tuple([i+1])+isite

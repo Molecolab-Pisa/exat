@@ -104,14 +104,24 @@ def Read():
   DipoLen  =  np.array(Dipo)                    # Electric tranistion dipole moments (a.u.)
   DipoVel  =  np.array(DipoVel)                 # Nabla (a.u.)
   Mag      =  np.array(Mag)
-  Site     = np.array(Site)*c.PhyCon['eV2wn']
-  Coup     = np.array(Coup)
+  if Site is not None:
+    Site     = np.array(Site)*c.PhyCon['eV2wn']
+  if Coup is not None:
+    Coup     = np.array(Coup)
 
   system   = ExcSystem(ChromList,Site,Coup,Cent,DipoLen,
                         DipoVel,Mag,Kappa)
 
   if c.OPT['read'] != 'external':
     system.add_geom(anum,xyz,NAtom)
+  elif c.ExtFiles['matrix'] is not None:
+    H = np.loadtxt(c.ExtFiles['matrix'])
+    if not (H.shape[0] == H.shape[1] == sum(system.NTran)):
+      msg = 'Matrix size (%d,%d) does not match with NTran (%d)' % \
+                   (H.shape+(sum(system.NTran),))
+      c.error(msg)
+    system.H = H
+    system.update_sitecoup()
 
   return system,SelChromList
 
@@ -133,19 +143,26 @@ def ReadExternal(ChromList):
 
   NChrom,NTran  =  ChromList.NChrom, ChromList.NTran
 
+  if c.ExtFiles['matrix'] is None:
+    # Read Site Energies
+    c.checkfile(c.ExtFiles['insite'])
+    Site = np.loadtxt(c.ExtFiles['insite'])[:,1:].flatten()
+    c.checkfile(c.ExtFiles['incoup'])
+    Coup = np.loadtxt(c.ExtFiles['incoup'],dtype="float",ndmin=1)
+  else:
+    if c.v():
+      print("     > EXCITON MATRIX    : %s" % c.ExtFiles['matrix'])
+    c.checkfile(c.ExtFiles['matrix']) 
+    Site,Coup = None,None
+      
   if c.v():  
     print(" ... number of chromophores         : %3d" % NChrom) 
     print(" ... N. transitions per chromophore : %s"  % NTran) 
-
-  # Read Site Energies
-  Site = np.zeros(sum(NTran))
-  Site = np.loadtxt(c.ExtFiles['insite'])[:,1:].flatten()
+       
 
   # Check if the file exists and read the files
-  c.checkfile(c.ExtFiles['incoup'])
   c.checkfile(c.ExtFiles['incent'])
   c.checkfile(c.ExtFiles['dipo'])
-  Coup = np.loadtxt(c.ExtFiles['incoup'],dtype="float",ndmin=1)
   Cent = np.loadtxt(c.ExtFiles['incent'],dtype="float")
   Dipo = np.loadtxt(c.ExtFiles['dipo'],dtype="float")
 
@@ -156,11 +173,9 @@ def ReadExternal(ChromList):
     Mag = np.zeros(Dipo.shape)
 
   Cent    = np.array(Cent)
-  Site    = np.array(Site)
   Dipo    = np.array(Dipo)/c.PhyCon['ToDeb']
   DipoVel = np.copy(Dipo)
   Mag     = np.array(Mag)
-  Coup    = np.array(Coup)
 
 
   return Cent,Site,Dipo,DipoVel,Mag,Coup
@@ -190,42 +205,6 @@ def ReadChromList():
 
 
 
-# *****************************************************************************
-# 
-# Prepare the file lists for gdvh23 version
-#
-
-def ChromListBuilder(chromlist):
-  chromfilelist = []
-  if c.OPT['env'] == 'vac'     : suffix = "_vac"
-  elif c.OPT['env'] == 'mmpol' : suffix = ""
-  for chrom in chromlist:
-    chromfilelist.append(chrom+"/"+chrom+suffix+".log")
-  return chromfilelist
-
-def CoupListBuilder(ChromList):
-  nchrom = ChromList.NChrom  
-
-  crlist = ChromList.Chrom
-
-  CoupList = []
-  CoupFileList = [] ; Prefix = ""
-  if c.OPT['env'] == 'vac'   : suffix = "_vac"
-  if c.OPT['env'] == 'mmpol' : suffix = ""
-  for i in range(nchrom):
-    for j in range(i+1,nchrom):
-      coup = crlist[i]+"."+crlist[j]
-      coupfileij = Prefix+"V_"+coup+"/V_"+coup+suffix+".log"
-      if c.OPT['coup'] != 'forster' :
-        #c.checkfile(coupfileij)
-        CoupFileList.append(coupfileij)
-        CoupList.append([i,j])
-  return CoupList,CoupFileList
-
-def preplists(ChromList):
-  ChromFileList = ChromListBuilder(ChromList.Chrom)
-  CoupList,CoupFileList = CoupListBuilder(ChromList)
-  return ChromFileList,CoupList,CoupFileList
 
 # *****************************************************************************
 #
@@ -377,15 +356,15 @@ def readgaulog36(logfile):
       if 'Electronic Coupling for Excitation Energy Tranfer' in line: break
 
       # Looks for NTran:
-      if line.startswith(' 9/') and '41=' in line:
+      if "9/41=" in line:
         try:
-          NTran = int(line.split("41=")[1].split(",")[0])
+          NTran = int(line.split("9/41=")[1].split(",")[0])
         except:
-          NTran = int(line.split("41=")[1].split("/")[0])
+          NTran = int(line.split("9/41=")[1].split("/")[0])
           
 
       # Looks for NChrom:
-      if line.startswith(' 1/') and "62=" in line:
+      if "62=" in line:
         NChrom = int(line.split("62=")[1].split(",")[0])
         NAtoms = [0]*NChrom 
         FragAt = [None]*NChrom
@@ -398,9 +377,9 @@ def readgaulog36(logfile):
           line = f.readline()
           if line[0:9] == ' Charge =':
             pass 
-          elif '(fragment=' in line.lower():
+          elif '(' in line and 'fragment=' in line.lower():
             d = line.split()[0]
-            IFrag = int(d.split('=')[1].split(')')[0].split(',')[0])
+            IFrag = int(d.split('nt=')[1].split(')')[0].split(',')[0])
             NAtoms[IFrag-1] += 1
             # Assign atom to fragment
             try:    FragAt[IFrag-1].append(kk)
@@ -411,7 +390,7 @@ def readgaulog36(logfile):
             break
 
       # Looks for the atomic coordinates 
-      elif ("Input orientation:" in line) or ("Standard orientation:" in line):
+      elif "Input orientation:"  in line:
         atom = True
         j = 0
         while atom == True :
@@ -482,7 +461,7 @@ def readgaulog36(logfile):
 
     # read couplings
     if DoCoup: 
-      if c.v(): print(" ... reading couplings in %s using %s values" % (logfile,c.OPT['coup']))
+      if c.v(): print( " ... reading couplings in %s using %s values" % (logfile,c.OPT['coup']) )
       Cdtyp = [('Ch1',int),('Tr1',int),('Ch2',int),('Tr2',int),('Coup',float)]
       Coup = []
 

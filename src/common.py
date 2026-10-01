@@ -42,7 +42,7 @@ import sys, os
 import numpy as np
 
 # VERSION
-VERSION  = "1.2.0a"
+VERSION  = "1.3.0"
 PROGVERS = "Exat - EXcitonic Analysis Tool - Version %s" % VERSION
 
 # ******************************************************************************
@@ -238,6 +238,9 @@ ExtFiles = {
    'dipo'         : 'dipo.in',        # Electric transtion dipoles (lenght formulation) in Debye
    'magdipo'      : 'dipomag.in',     # Magnetic transtion dipoles in a.u.
    'modcoup'      : 'coup.in',        # Coupling modification file
+   'moddipo'      : 'dipo.in',        # Electric dipole modification file (Debye)
+   'modmag'       : 'dipomag.in',     # Magnetic dipole modification file (a.u.)
+   'modcent'      : 'cent.in',        # Center modification file (Ang)
    'crlist'       : 'chromlist.in',   # List of chromophores and selected tranitions
    'refaxis'      : 'reference.in',   # List of chromophores, refaxes and angles (for select tr)
    'ScaleTran'    : 'scaletran.in'    # List of chromophores and scaling factors (for select tr)

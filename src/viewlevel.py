@@ -48,7 +48,6 @@ import common as c
 from excsystem import ExcSystem, load_npz
 import argparse as arg
 import matplotlib as mpl
-mpl.use('GTKAgg')
 import matplotlib.pyplot as plt
 
 CMAP = mpl.cm.afmhot
@@ -67,7 +66,7 @@ def plot_levels(thresh,site,energy,coeff,labels=None):
   ax = plt.gca()
   ax.set_ylabel('Energy (cm$^{-1}$)')
   ax.xaxis.tick_top()
-  ax.tick_params(axis='x',which='both',bottom='off',top='off',pad=15)
+  ax.tick_params(axis='x',which='both',bottom=False,top=False,pad=15)
 
   xtics  = [1.0]
   xlabel = ['Site']
@@ -173,7 +172,7 @@ if __name__ == "__main__" :
 
   # Read input line
   parser = arg.ArgumentParser(description="Tool for energy level visualization")
-  parser.add_argument('-v',help='Increase the verbosity of the output',action="count")
+  parser.add_argument('-v',help='Increase the verbosity of the output',action="count",default=0)
   parser.add_argument('-t','--threshold',help='Threshold for connecting levels (%%)',type=float,default=10.0)
   parser.add_argument('-s','--strongcoupling',help='Define threshold for strong couplings (cm^-1)',type=float,default=None)
   parser.add_argument('--partition',help='Select different sets of states to partition the Hamiltonian',
@@ -195,7 +194,7 @@ if __name__ == "__main__" :
   print("\n > viewlevel.py module")
   print("   A tool for visualizing the energy levels \n")
 
-  if args.v > 0  : OPT['verbosity'] = args.v
+  if args.v > 0  : c.OPT['verbosity'] = args.v
 
   # Read the excitonic matrix
   c.checkfile(exatfile)
@@ -261,7 +260,7 @@ if __name__ == "__main__" :
     for SS in sets:
       nn = len(SS)
       for I in range(nn):
-	for J in range(nn): M0[SS[I],SS[J]] = M[SS[I],SS[J]]
+        for J in range(nn): M0[SS[I],SS[J]] = M[SS[I],SS[J]]
     
     # Diagonalize H0 Hamiltonian
     print(" ... diagonalize H0 Hamiltonian")

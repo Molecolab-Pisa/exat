@@ -75,6 +75,7 @@ class ChromTranList(OrderedDict):
 
         for line in lines:
             data = line.split()
+            if not data: continue
             ChromList.append(data[0])
             ITran = list(map(int,data[1:]))
             if not ITran and assume_tran:
@@ -94,15 +95,18 @@ class ChromTranList(OrderedDict):
         """Return the ID of the transition for 
            chromophore chrom and transition itran"""
 
+        # Cache NTran once: rebuilt from scratch on every access otherwise
+        NTran = self.NTran
+
         if not str(chrom) == chrom:
             chrom = str(chrom)
 
         if not chrom in list(self.keys()):
             return None
         ichrom = self.index(chrom)
-        if itran > self.NTran[ichrom]:
+        if itran > NTran[ichrom]:
             return None
-        return sum(self.NTran[:ichrom]) + itran
+        return sum(NTran[:ichrom]) + itran
 
     def kChromTran(self,k):
         """ Return the chrom,tran pair of the k-th transition
@@ -247,16 +251,8 @@ class ExcSystem(object):
         if not self.has_Hamiltonian:
             return self.coup
 
-        coups = np.empty(0)
-        for I,ChrI in enumerate(self.ChromList):
-            id1 = np.asarray(self.get_chrom_tran(I))
-            for J,ChrJ in enumerate(self.ChromList):
-                if I >= J: continue
-                id2 = np.asarray(self.get_chrom_tran(J))
-                tmp = self.H[np.ix_(id1,id2)].ravel()
-                coups = np.concatenate((coups,tmp))
-
-        return coups
+        rows,cols = _pair_order_indices(self.NTran)
+        return self.H[rows,cols]
 
     @property
     def has_Hamiltonian(self):
@@ -326,12 +322,17 @@ class ExcSystem(object):
         coup = self.coup
         site = self.site
 
+        # Cache NTran/NChrom once: ChromTranList.NTran rebuilds it
+        # at every access
+        NTran  = self.NTran
+        NChrom = self.NChrom
+
         # Check the dimensions
-        dimen = sum(self.NTran)
+        dimen = sum(NTran)
         ncoup = 0
-        for i in range(self.NChrom):
-          for j in range(i+1,self.NChrom):
-            ncoup += self.NTran[i]*self.NTran[j]
+        for i in range(NChrom):
+          for j in range(i+1,NChrom):
+            ncoup += NTran[i]*NTran[j]
 
         lcoup = len(self.coup)
       
@@ -342,7 +343,7 @@ class ExcSystem(object):
       
         if c.v(1):
           print(" ... Matrix dimension       : %4d" % dimen) 
-          print(" ... Number of chromophores : %4d" % self.NChrom) 
+          print(" ... Number of chromophores : %4d" % NChrom) 
           print(" ... Number of COUPLINGS    : %4d" % ncoup) 
       
       
@@ -353,12 +354,14 @@ class ExcSystem(object):
         self.H[np.diag_indices_from(self.H)] = site
 
         # Write the off-diagonal blocks:
+        # offsets[i] is the starting index of chromophore i's transitions
+        offsets = np.concatenate(([0],np.cumsum(NTran)))
         L=0
-        for igi in range(self.NChrom):
-          idxi = self.get_chrom_tran(igi)
+        for igi in range(NChrom):
+          idxi = np.arange(offsets[igi],offsets[igi+1])
           nci  = len(idxi)
-          for igj in range(igi+1,self.NChrom):
-            idxj = self.get_chrom_tran(igj)
+          for igj in range(igi+1,NChrom):
+            idxj = np.arange(offsets[igj],offsets[igj+1])
             ncj  = len(idxj)
             nblk = len(idxi)*len(idxj)
             
@@ -389,12 +392,20 @@ class ExcSystem(object):
         " Try to return a deep copy of the object "
         cls = type(self)
         crlist_tmp = self.ChromList.copy()
-        new = cls(crlist_tmp,self.Site,self.Coup,
-                self.Cent,self.DipoLen,self.DipoVel,self.Mag,
-                self.Kappa)
 
         if self.has_Hamiltonian:
+            # H is copied directly below; do not derive site/coup from it
+            # here (self.Coup is expensive) only to discard them right away.
+            new = cls(crlist_tmp,None,None,
+                    self.Cent,self.DipoLen,self.DipoVel,self.Mag,
+                    self.Kappa)
             new.H = self.H.copy()
+        else:
+            # No Hamiltonian yet: site/coup ARE the data, 
+            # so carry them over directly.
+            new = cls(crlist_tmp,self.site,self.coup,
+                    self.Cent,self.DipoLen,self.DipoVel,self.Mag,
+                    self.Kappa)
 
         if self.has_geom:
             new.xyz  = self.xyz.copy()
@@ -414,14 +425,20 @@ class ExcSystem(object):
         else:
             selchromlist = ChromTranList(chromlist)
 
-        IndChrom = [ self.ChromList.index(x) for x in selchromlist ]    
+        # Cache Chrom/NTran once
+        ChromNames = self.ChromList.Chrom
+        NTran      = self.NTran
+        name_to_idx = {name:i for i,name in enumerate(ChromNames)}
+        offsets = np.concatenate(([0],np.cumsum(NTran)))
+
+        IndChrom = [ name_to_idx[str(x)] for x in selchromlist ]    
 
 
-        mask = np.zeros(sum(self.NTran),dtype=bool)
+        mask = np.zeros(sum(NTran),dtype=bool)
 
         for I in IndChrom:
-          Chrom = self.ChromList.Chrom[I]
-          idxI  = self.get_chrom_tran(I)
+          Chrom = ChromNames[I]
+          idxI  = np.arange(offsets[I],offsets[I+1])
           # beware of off-by-one
           idxT = [j for i,j in enumerate(idxI) if i+1 in selchromlist[Chrom] ]
           mask[idxT] = True
@@ -511,21 +528,34 @@ class ExcSystem(object):
 
 ##########################
 
+def _pair_order_indices(NTran):
+    """
+    Row/column transition indices (i,j) for every cross-chromophore pair I<J,
+    in chromophore-pair-major then row-major-within-pair order -- the same
+    order used by Coup/Kappa and by buildmatrix()'s off-diagonal blocks
+    (which matches how per-pair coupling files are read).
+    """
+    NTran = np.asarray(NTran)
+    M = int(NTran.sum())
+
+    # Chromophore of each transition
+    chrom_of = np.repeat(np.arange(len(NTran)),NTran)
+
+    rows,cols = np.triu_indices(M,k=1)
+
+    # Exclude (i,j) when chrom[i] == chrom[j]
+    cross = chrom_of[rows] != chrom_of[cols]
+    rows,cols = rows[cross],cols[cross]
+
+    # Sort by chromophore pair first (chrom[rows], then chrom[cols]),
+    # then by transition within that pair (rows, then cols)
+    order = np.lexsort((cols,rows,chrom_of[cols],chrom_of[rows]))
+    return rows[order],cols[order]
+
 def get_coupmask(chromlist,mask):
 
-    NTran = chromlist.NTran
-    newmask = []
-    for I,ChrI in enumerate(chromlist):
-        NTi = NTran[I]
-        idi = np.arange(sum(NTran[:I]),sum(NTran[:I+1]) )
-        for J,ChrJ in enumerate(chromlist):
-            NTj = NTran[J]
-            if I >= J: continue
-            idj = np.arange(sum(NTran[:J]),sum(NTran[:J+1]) )
-            id1,id2 = np.asarray(np.meshgrid(idi,idj)).T.reshape(-1,2).T
-            newmask += (mask[id1] & mask[id2]).tolist()
-
-    return np.asarray(newmask)
+    rows,cols = _pair_order_indices(chromlist.NTran)
+    return mask[rows] & mask[cols]
 
 def load_npz(infile):
 

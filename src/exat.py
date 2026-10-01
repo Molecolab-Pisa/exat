@@ -116,11 +116,12 @@ if ( c.OPT['reorient'] is not None ) :
     system = u.reorientdipo(system)
 
 if c.OPT['read'] != 'external':
-  # If requested, modify transition centers TODO
-  if c.OPT['ModCent']: Cent = u.modcent(Cent)
-  # If requested, modify electric transition dipoles
-  if c.OPT['ModDipoLen']: DipoLen = u.moddipo(DipoLen,'dipo')
-  if c.OPT['ModDipoMag']: Mag     = u.moddipo(Mag,'magdipo')
+  # If requested, modify transition centers
+  # (note: couplings are NOT recomputed)
+  if c.OPT['ModCent']:    system = u.modcent(system)
+  # If requested, modify electric and magnetic transition dipoles
+  if c.OPT['ModDipoLen']: system = u.moddipo(system,'len')
+  if c.OPT['ModDipoMag']: system = u.moddipo(system,'mag')
   # If requested, modify site energies
   if c.OPT['ModSite']: 
     system = u.modsite(system)

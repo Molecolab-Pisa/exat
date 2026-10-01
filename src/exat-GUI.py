@@ -36,7 +36,7 @@
 #   <http://www.gnu.org/licenses/>.
 #
 
-import os,sys
+import os,sys,itertools
 import gi
 gi.require_version('Gtk', '3.0')
 from gi.repository import Gtk as gtk, Pango as pango
@@ -108,8 +108,9 @@ def guessexternal(crlist):
   # Possibly set external files
   c.ExtFiles['incoup'] = BN+'coup.in'
   c.ExtFiles['incent'] = BN+'cent.in'
-  c.ExtFiles['indipo'] = BN+'dipo.in'
+  c.ExtFiles['dipo']   = BN+'dipo.in'
   c.ExtFiles['insite'] = BN+'site.in'
+  c.ExtFiles['matrix'] = None
   return True
 
 # Spectrum Calculation
@@ -165,6 +166,19 @@ class MyNavToolbar(NavigationToolbar):
     toolitems = [t for t in NavigationToolbar.toolitems if
                  t[0] in ('Home', 'Pan', 'Zoom', 'Save')]
 
+def make_toolbar(canvas,window):
+    # Newer matplotlib versions do not take the window argument
+    try:
+      return MyNavToolbar(canvas,window)
+    except TypeError:
+      return MyNavToolbar(canvas)
+
+def clear_artists(ax):
+    # Remove lines and collections from an axis
+    # (ax.lines = [] does not work in newer matplotlib versions)
+    for a in list(ax.lines)+list(ax.collections):
+      a.remove()
+
 
 # Key binding for matplotlib plots
 # Restore broken keybindings 
@@ -189,7 +203,7 @@ def mpl_keypress(event):
 
 
 # List for List widget
-class EasyList:
+class EasyList(object):
     def __init__(self, treeview, columns, coltypes):
         """EasyList(gtktreeview, titles, types) -> EasyList object
         
@@ -248,7 +262,7 @@ class EasyList:
     # END
 
 
-class EXATGUI:
+class EXATGUI(object):
 
   original_data = None
   specopt       = dict()
@@ -284,6 +298,7 @@ class EXATGUI:
       del self.Site,self.Coup,self.Mag,self.DipoLen,self.MagInt,\
           self.Cent,self.energy,self.coeff,self.H,self.DipoVel,self.Kappa
     except: pass
+    self.obj('menu_mag').set_active(False)
     resetcommon()
     self.clearwindow()
 
@@ -302,7 +317,10 @@ class EXATGUI:
     except:pass
 
   def exat_read(self):
-    self.clearwindow()
+    # Reset leftover state
+    inlog = self.inlog
+    self.clearexat()
+    self.inlog = inlog
     if self.inlog[-4:] == '.npz':
       c.ExtFiles['load'] = self.inlog
       c.OPT['read'] = 'load'
@@ -386,7 +404,7 @@ class EXATGUI:
     for i in range(self.system.NChrom):
       if np.any(selection[i]):
         # Only append Chroms that have selected transitions
-        SelChromList.append(i+1)
+        SelChromList.append(self.system.ChromList.Chrom[i])
         ITran  = np.where(selection[i])[0]
         Sel.append(ITran+1)
 
@@ -419,9 +437,10 @@ class EXATGUI:
       f.write("\n")
       np.savetxt(f,TblProb,fmt='%10.4f ',delimiter='',newline='\n')
 
-    # Visudipo
-    u.savegeom(self.system.anum,self.system.xyz.tolist())
-    u.savevisudipo(self.system,self.EXCDipoLen,-self.MagInt)
+    # Visudipo (only if geometry is available)
+    if self.system.has_geom:
+      u.savegeom(self.system.anum,self.system.xyz.tolist())
+      u.savevisudipo(self.system,self.EXCDipoLen,-self.MagInt)
 
     #results
     u.resout(self.energy,self.EXCDipo2,self.LD,self.EXCRot)
@@ -465,7 +484,8 @@ class EXATGUI:
     # first of all, retrieve original data
     try:
       self.system = self.original_data.copy()
-      self.system.buildmatrix()
+      if not self.system.has_Hamiltonian:
+        self.system.buildmatrix()
       self.update_data()
     except:
       return None
@@ -531,7 +551,7 @@ class EXATGUI:
 
   def on_gtk_save_as_activate(self, menuitem, data=None):
     self.fcd = gtk.FileChooserDialog("Save as...",None,gtk.FileChooserAction.SAVE,
-          buttons=(gtk.STOCK_CANCEL, gtk.ResponseType.CANCEL, gtk.STOCK_OPEN, gtk.ResponseType.OK))
+          buttons=(gtk.STOCK_CANCEL, gtk.ResponseType.CANCEL, gtk.STOCK_SAVE, gtk.ResponseType.OK))
     if self.current_folder is not None:
       self.fcd.set_current_folder(self.current_folder)
 
@@ -541,12 +561,12 @@ class EXATGUI:
       # if a file was choosen save the current folder
       self.current_folder = self.fcd.get_current_folder()
       self.fcd.destroy()
-      try: 
+      try:
         self.savedata(outfile)
+        self.curr_outfile = outfile # save outfile info (only on success)
         self.generic_info('Data saved to %s' % outfile)
-      except IOError as e: 
+      except Exception as e:
         self.generic_error('Could not save file %s\n %s' % (outfile,e))
-      self.curr_outfile = outfile # save outfile info
     else: self.fcd.destroy()
     mpl.rcParams['savefig.directory'] = self.current_folder
     pass
@@ -556,7 +576,10 @@ class EXATGUI:
     except:
       self.on_gtk_save_as_activate(None,None)
       return
-    self.savedata(self.curr_outfile)
+    try:
+      self.savedata(self.curr_outfile)
+    except Exception as e:
+      self.generic_error('Could not save file %s\n %s' % (self.curr_outfile,e))
     pass
 
   def update_data(self):
@@ -727,7 +750,7 @@ class EXATGUI:
     self.levelsfigure.patch.set_facecolor('#dfdfdf') # Color around plot
     self.levelscanvas = Canvas(self.levelsfigure)
     self.levels_box.pack_start(self.levelscanvas, True, True, 0)
-    self.levToolbar = MyNavToolbar(self.levelscanvas, self.winlevels)
+    self.levToolbar = make_toolbar(self.levelscanvas, self.winlevels)
     self.levels_box.pack_start(self.levToolbar,False,True,0)
     self.levToolbar.pan() # Activate pan by default
     self.levToolbar.show()
@@ -756,7 +779,7 @@ class EXATGUI:
     #self.speccanvas.set_flags(gtk.HAS_FOCUS | gtk.CAN_FOCUS)
     self.speccanvas.grab_focus()
     # toolbar
-    self.specToolbar = MyNavToolbar(self.speccanvas, self.winspec)
+    self.specToolbar = make_toolbar(self.speccanvas, self.winspec)
     self.spec_box.pack_start(self.specToolbar,False,True,0)
     self.specToolbar.pan() # Activate pan by default
     self.specToolbar.show()
@@ -797,7 +820,7 @@ class EXATGUI:
     ax.set_ylabel('Energy (eV)')
     #ax.axes.get_xaxis().set_visible(False)
     ax.xaxis.tick_top()
-    ax.tick_params(axis='x',which='both',bottom='off',top='off',pad=15)
+    ax.tick_params(axis='x',which='both',bottom=False,top=False,pad=15)
     ax.xaxis.set_ticks([1.15,1.85])
     ax.xaxis.set_ticklabels(['Sites','Excitons'])
     bfont = mpl.font_manager.FontProperties(size=14, weight='bold')
@@ -822,7 +845,7 @@ class EXATGUI:
     ax = self.levelsfigure.gca()
 
     # Possibly clear data
-    ax.lines = []
+    clear_artists(ax)
 
     # See if we have exat results
     try: self.energy
@@ -916,15 +939,16 @@ class EXATGUI:
 
 
     # Normalize sticks
-    ODsticks *= MaxOD/ODsticks.max()*0.9
+    if ODsticks.max() > 0:
+      ODsticks *= MaxOD/ODsticks.max()*0.9
     if (CDsticks != 0).any():
       CDsticks *= CD_absmax/np.abs(CDsticks).max()*0.9
 
     # Plot:
     ODax,CDax = self.specfigure.get_axes()
     # Reset
-    ODax.lines = [];  ODax.collections = []; 
-    CDax.lines = [];  CDax.collections = []; 
+    clear_artists(ODax)
+    clear_artists(CDax)
     #OD
     ODax.set_ylabel('Epsilon',fontweight='bold',fontsize=16)
     ODax.set_ylim(0,MaxOD*1.1)
@@ -934,7 +958,7 @@ class EXATGUI:
 
     #CD
     CDax.set_ylabel('Delta Epsilon',fontweight='bold',fontsize=16)
-    ODax.set_ylim(MinCD*1.1,MaxOD*1.1)
+    CDax.set_ylim(MinCD*1.1,MaxCD*1.1)
     CDax.set_title('Circular Dichroism Spectrum')
     CDax.axhline(linewidth=1.0,linestyle="-",color="black")
     CDax.plot(w,CDtot,linewidth=2.5,linestyle="-",color="red")
