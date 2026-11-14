@@ -111,6 +111,8 @@ This file specifies the energy of the transitions (Units are eV). Its default na
 \end{verbatim}
 \end{quote}
 
+The same format is used with the \texttt{-{}-modsite} option (without \texttt{-{}-readexternal}) to modify the site energies read from Gaussian. In this case, only the chromophores and transitions to be modified need to be specified, and the order of the lines is not relevant. 
+
 \paragraph*{Dipoles file. } 
 This file specifies the transition dipole moments (In Debye units). Its default name is \texttt{dipo.in}. It should contain a line for every transition, specifying the components $x$, $y$ and $z$ of the transition dipole. The dipoles should be specified in the same order as in the \texttt{chromlist} file, and then in the order of the transitions. 
 

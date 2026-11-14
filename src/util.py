@@ -669,8 +669,8 @@ def scaletran(system):
       c.error("Transition number not understood: %s" % data[1])
 
     #k = c.TrIdx(chrom,itran) - 1
-    k = crlist.TrIdx(chrom,itran) - 1
-  
+    k = _tridx(crlist,chrom,itran,"scaletran")
+
     try:
       fact = float(data[2])
     except:  
@@ -720,9 +720,9 @@ def modsite(system):
 
     for itran,datai in enumerate(data[1:],1):
 
-      k = crlist.TrIdx(chrom,itran) - 1
-  
-      if "+" in datai or "-" in datai: 
+      k = _tridx(crlist,chrom,itran,"modsite")
+
+      if datai[0] in "+-":
         shift = True  # check if we want to shift or not
       else:
         shift = False
@@ -889,8 +889,8 @@ def modcoup(system):
       newcoup     = float(data[4])
     except ValueError:
       c.error('Incorrect format in coupling file')
-    ii = exc.ChromList.TrIdx(iChrom,iTran) - 1
-    jj = exc.ChromList.TrIdx(jChrom,jTran) - 1
+    ii = _tridx(exc.ChromList,iChrom,iTran,"modcoup")
+    jj = _tridx(exc.ChromList,jChrom,jTran,"modcoup")
     if ii == jj:
       c.error("Trying to change a site energy in modcoup")
     if c.v():

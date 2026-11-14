@@ -15,6 +15,7 @@ doc/*.toc
 doc/*.pdf
 
 # Generated tests
+test/test.log
 test/*/test?.*
 test/*/test_spec?.*
 
