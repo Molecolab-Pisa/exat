@@ -42,7 +42,7 @@ import sys, os
 import numpy as np
 
 # VERSION
-VERSION  = "1.3.0"
+VERSION  = "1.3.0b"
 PROGVERS = "Exat - EXcitonic Analysis Tool - Version %s" % VERSION
 
 # ******************************************************************************
